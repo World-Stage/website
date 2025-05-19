@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
+import { UserGroupIcon } from "@heroicons/react/24/outline";
 
 interface ChatMessage {
   sender: string;
@@ -66,6 +67,10 @@ export function Chat() {
     <div className="bg-white dark:bg-gray-900 rounded-lg flex flex-col border border-gray-200 dark:border-gray-700 h-[500px] lg:h-[calc(100vh-64px)]">
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <h2 className="text-lg font-bold">Stream Chat</h2>
+        <div className="flex items-center gap-1">
+          <UserGroupIcon className="w-5 h-5" color="red"/>
+          <span className="text-red-400 text-xs">279K viewers</span> {/* Placeholder */}
+        </div>
       </div>
       <div
         ref={messagesContainerRef}

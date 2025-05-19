@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { HandThumbUpIcon, HandThumbDownIcon, ClockIcon } from "@heroicons/react/24/outline";
 
 interface Streamer {
   id: string;
@@ -23,6 +24,9 @@ interface QueueResponseItem {
 export function StreamInfo() {
   const [currentStreamer, setCurrentStreamer] = useState<Streamer | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [likeCount, setLikeCount] = useState(0); // Placeholder
+  const [dislikeCount, setDislikeCount] = useState(0); // Placeholder
 
   useEffect(() => {
     // Initial load
@@ -64,39 +68,69 @@ export function StreamInfo() {
     };
   }, []);
 
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-lg">
-      {currentStreamer && (
-        <div className="mb-6">
-          <h2 className="text-xl font-bold mb-2">Now Streaming</h2>
-          <div className="space-y-2">
-            <p className="font-medium">{currentStreamer.username}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              {currentStreamer.title}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Time remaining: {currentStreamer.timeRemaining}s
-            </p>
-          </div>
-        </div>
-      )}
+  const handleVote = async (vote: "keep" | "skip") => {
+    if (hasVoted) return;
+    try {
+      const response = await fetch('http://localhost:8082/stream/view/vote', {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ voteType: vote }),
+      });
+      if (response.ok) {
+        setHasVoted(true);
+        if (vote === "keep") setLikeCount((c) => c + 1);
+        if (vote === "skip") setDislikeCount((c) => c + 1);
+      }
+    } catch (error) {
+      console.error("Failed to submit vote:", error);
+    }
+  };
 
-      <div>
-        <h3 className="text-lg font-semibold mb-3">Up Next</h3>
-        <div className="space-y-2">
-          {queue.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded"
-            >
-              <span>{item.username}</span>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                #{item.position}
-              </span>
+  return (
+    <div className="w-full">
+      {currentStreamer && (
+        <>
+          {/* Top info row */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div className="flex flex-col md:flex-row md:items-center gap-2">
+              <span className="font-bold text-lg md:text-xl">I am live!</span>
+              <span className="text-gray-500 text-sm md:ml-4">by <span className="font-semibold">Fletchstud</span></span>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="flex items-center gap-5">
+                <div className="flex items-center gap-1">
+                    <ClockIcon className="w-5 h-5" />
+                    <span className="text-gray-500 text-sm">10:00</span>
+                </div>
+            <div className="flex items-center gap-2 mt-2 md:mt-0">
+              <button
+                onClick={() => handleVote("keep")}
+                disabled={hasVoted}
+                className="flex items-center gap-1 px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+              >
+                <HandThumbUpIcon className="w-5 h-5" />
+                <span>{likeCount}</span>
+              </button>
+              <button
+                onClick={() => handleVote("skip")}
+                disabled={hasVoted}
+                className="flex items-center gap-1 px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+              >
+                <HandThumbDownIcon className="w-5 h-5" />
+                <span>{dislikeCount}</span>
+              </button>
+            </div>
+            </div>
+
+          </div>
+          {/* Description box */}
+          <div className="mt-3 bg-gray-100 dark:bg-gray-800 rounded-lg p-4 text-sm text-gray-800 dark:text-gray-200">
+            <p>i went through the steam workshop to find the most interesting maps... this was so much fun</p>
+            <p className="mt-2 text-xs text-gray-500">i am live every day here: <span className="text-purple-600">/ohnpixel..more</span></p>
+          </div>
+        </>
+      )}
     </div>
   );
 } 
