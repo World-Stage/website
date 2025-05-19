@@ -13,7 +13,7 @@ export function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [stompClient, setStompClient] = useState<Client | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const socket = new SockJS('http://localhost:8082/chat');
@@ -36,7 +36,13 @@ export function Chat() {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const threshold = 40; // px
+    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+    if (atBottom) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [messages]);
 
   const sendMessage = (e: React.FormEvent) => {
@@ -57,32 +63,34 @@ export function Chat() {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-lg h-full flex flex-col">
-      <h2 className="text-xl font-bold mb-4">Chat</h2>
-      
-      <div className="flex-1 overflow-y-auto mb-4 space-y-2">
+    <div className="bg-white dark:bg-gray-900 rounded-lg flex flex-col border border-gray-200 dark:border-gray-700 h-[500px] lg:h-[calc(100vh-64px)]">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <h2 className="text-lg font-bold">Stream Chat</h2>
+      </div>
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto px-4 py-2 space-y-2 text-sm"
+      >
         {messages.map((msg, index) => (
-          <div key={index} className="p-2 bg-gray-50 dark:bg-gray-700 rounded">
-            <span className="font-medium text-blue-600 dark:text-blue-400">
-              {msg.sender}:
+          <div key={index} className="flex items-start gap-2">
+            <span className="font-semibold text-purple-600 dark:text-purple-400 whitespace-nowrap">
+              {msg.sender}
             </span>
-            <span className="ml-2">{msg.content}</span>
+            <span className="break-words">{msg.content}</span>
           </div>
         ))}
-        <div ref={messagesEndRef} />
       </div>
-
-      <form onSubmit={sendMessage} className="flex gap-2">
+      <form onSubmit={sendMessage} className="flex gap-2 p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <input
           type="text"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
-          placeholder="Type a message..."
-          className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+          placeholder="Send a message"
+          className="flex-1 px-3 py-2 rounded bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
         />
         <button
           type="submit"
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-4 py-2 bg-purple-600 text-white rounded font-semibold hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
         >
           Send
         </button>
