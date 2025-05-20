@@ -36,7 +36,7 @@ export function StreamPlayer() {
 
   return (
     <div className="relative aspect-video w-full bg-black rounded-lg overflow-hidden">
-      {streamUrl && (
+      {streamUrl ? (
         <ReactPlayer
           url={streamUrl}
           playing={isPlaying}
@@ -50,6 +50,10 @@ export function StreamPlayer() {
             },
           }}
         />
+      ) : (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-white text-2xl">No stream available</div>
+        </div>
       )}
     </div>
   );

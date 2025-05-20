@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, use } from "react";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
 import { UserGroupIcon } from "@heroicons/react/24/outline";
@@ -10,8 +10,19 @@ interface ChatMessage {
   content: string;
 }
 
+export function formatNumber(num: number): string {
+  if (num >= 1_000_000) {
+    return (num / 1_000_000).toFixed(num % 1_000_000 === 0 ? 0 : 1) + 'M';
+  }
+  if (num >= 1_000) {
+    return (num / 1_000).toFixed(num % 1_000 === 0 ? 0 : 1) + 'k';
+  }
+  return num.toString();
+}
+
 export function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [viewers, setViewers] = useState<number>(0);
   const [inputMessage, setInputMessage] = useState("");
   const [stompClient, setStompClient] = useState<Client | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -25,7 +36,13 @@ export function Chat() {
           const newMessage = JSON.parse(message.body) as ChatMessage;
           setMessages(prev => [...prev, newMessage]);
         });
+        client.subscribe('/topic/viewers', (message: IMessage) => {
+          console.log(message);
+          const count = JSON.parse(message.body) as number;
+          setViewers(count);
+        });
       },
+
     });
 
     client.activate();
@@ -34,6 +51,17 @@ export function Chat() {
     return () => {
       client.deactivate();
     };
+  }, []);
+
+  useEffect(() => {
+      // Delay viewer count fetch slightly
+      setTimeout(() => {
+        fetch('http://localhost:8082/stream/view/count')
+          .then(res => res.json())
+          .then(data => {
+            setViewers(data.viewerCount);
+          });
+      }, 300); // tweak this if needed
   }, []);
 
   useEffect(() => {
@@ -69,7 +97,7 @@ export function Chat() {
         <h2 className="text-lg font-bold">Stream Chat</h2>
         <div className="flex items-center gap-1">
           <UserGroupIcon className="w-5 h-5" color="red"/>
-          <span className="text-red-400 text-xs">279K viewers</span> {/* Placeholder */}
+          <span className="text-red-400 text-xs">{formatNumber(viewers)} viewers</span>
         </div>
       </div>
       <div
