@@ -27,12 +27,13 @@ export function StreamInfo() {
   const [hasVoted, setHasVoted] = useState(false);
   const [likeCount, setLikeCount] = useState(0); // Placeholder
   const [dislikeCount, setDislikeCount] = useState(0); // Placeholder
-
+  console.log(currentStreamer);
   useEffect(() => {
     // Initial load
     fetch('http://localhost:8082/stream/view/active')
       .then(res => res.json())
       .then(data => {
+        console.log(data);
         setCurrentStreamer({
           id: data.streamerId,
           username: data.streamerName,
