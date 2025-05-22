@@ -1,17 +1,79 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 interface CountdownTimerProps {
   seconds: number;
 }
 
 export function CountdownTimer({ seconds }: CountdownTimerProps) {
-  // Calculate the percentage for the circle
-  const normalizedPercentage = (seconds / 5) * 100;
-  const percentage = Math.min(100, Math.max(0, normalizedPercentage));
+  const [displaySeconds, setDisplaySeconds] = useState(seconds);
+  const previousSeconds = useRef(seconds);
+  const progressRef = useRef<SVGCircleElement>(null);
+  const frameRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const endPercentageRef = useRef(0);
   
-  // Calculate stroke-dasharray and stroke-dashoffset for the circle
-  const circumference = 2 * Math.PI * 40; // 40 is the radius
-  const strokeDashoffset = circumference * (1 - percentage / 100);
+  // Calculate the circumference of the circle
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  
+  // Update the animation frame on seconds change
+  useEffect(() => {
+    // Set the display value immediately for the text
+    setDisplaySeconds(seconds);
+    
+    // Calculate start and target percentages
+    const startPercentage = (previousSeconds.current / 5) * 100;
+    const endPercentage = (seconds / 5) * 100;
+    
+    endPercentageRef.current = Math.min(100, Math.max(0, endPercentage));
+    
+    // Store the start time when we begin the animation
+    startTimeRef.current = performance.now();
+    
+    // Cancel any existing animation
+    if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+    }
+    
+    // Start smooth animation
+    const animateProgress = (timestamp: number) => {
+      if (!startTimeRef.current) startTimeRef.current = timestamp;
+      
+      // Calculate elapsed time (animation duration: 300ms)
+      const elapsed = timestamp - startTimeRef.current;
+      const duration = 300; // ms
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Calculate the current percentage based on animation progress
+      const currentPercentage = startPercentage + progress * (endPercentageRef.current - startPercentage);
+      
+      // Apply the stroke-dashoffset
+      if (progressRef.current) {
+        const strokeDashoffset = circumference * (1 - currentPercentage / 100);
+        progressRef.current.style.strokeDashoffset = strokeDashoffset.toString();
+      }
+      
+      // Continue animation if not complete
+      if (progress < 1) {
+        frameRef.current = requestAnimationFrame(animateProgress);
+      }
+    };
+    
+    // Start the animation
+    frameRef.current = requestAnimationFrame(animateProgress);
+    
+    // Update previous seconds for next animation
+    previousSeconds.current = seconds;
+    
+    // Cleanup
+    return () => {
+      if (frameRef.current) {
+        cancelAnimationFrame(frameRef.current);
+      }
+    };
+  }, [seconds, circumference]);
   
   return (
     <div className="absolute top-4 right-4 z-50 flex items-center justify-center w-16 h-16 pointer-events-none">
@@ -20,7 +82,7 @@ export function CountdownTimer({ seconds }: CountdownTimerProps) {
         <circle 
           cx="50" 
           cy="50" 
-          r="40" 
+          r={radius} 
           fill="black" 
           fillOpacity="0.5" 
           stroke="#666" 
@@ -29,14 +91,14 @@ export function CountdownTimer({ seconds }: CountdownTimerProps) {
         
         {/* Progress circle */}
         <circle 
+          ref={progressRef}
           cx="50" 
           cy="50" 
-          r="40" 
+          r={radius}
           fill="transparent" 
           stroke="white" 
           strokeWidth="4"
           strokeDasharray={circumference} 
-          strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
           transform="rotate(-90 50 50)"
         />
@@ -51,7 +113,7 @@ export function CountdownTimer({ seconds }: CountdownTimerProps) {
           textAnchor="middle"
           dominantBaseline="central"
         >
-          {seconds}
+          {displaySeconds}
         </text>
       </svg>
     </div>
