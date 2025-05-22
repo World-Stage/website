@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { HandThumbUpIcon, HandThumbDownIcon, ClockIcon } from "@heroicons/react/24/outline";
+import { useStreamEvents } from "../hooks/useStreamEvents";
 
 interface Streamer {
   id: string;
@@ -10,24 +11,14 @@ interface Streamer {
   timeRemaining: number;
 }
 
-interface QueueItem {
-  id: string;
-  username: string;
-  position: number;
-}
-
-interface QueueResponseItem {
-  streamerId: string;
-  streamerName: string;
-}
-
 export function StreamInfo() {
+  const { expirationTime } = useStreamEvents();
   const [currentStreamer, setCurrentStreamer] = useState<Streamer | null>(null);
-  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [hasVoted, setHasVoted] = useState(false);
   const [likeCount, setLikeCount] = useState(0); // Placeholder
   const [dislikeCount, setDislikeCount] = useState(0); // Placeholder
-  console.log(currentStreamer);
+  const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
+
   useEffect(() => {
     // Initial load
     fetch('http://localhost:8082/stream/view/active')
@@ -55,19 +46,41 @@ export function StreamInfo() {
       });
     });
 
-    eventSource.addEventListener('queue-update', event => {
-      const data = JSON.parse(event.data);
-      setQueue(data.queue.map((item: QueueResponseItem, index: number) => ({
-        id: item.streamerId,
-        username: item.streamerName,
-        position: index + 1
-      })));
-    });
-
     return () => {
       eventSource.close();
     };
   }, []);
+  useEffect(() => {
+    if (!expirationTime) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    const updateTimeRemaining = () => {
+      const now = Date.now();
+      // Convert expiration time from seconds to milliseconds for comparison
+      const remainingMs = (expirationTime * 1000) - now;
+      if (remainingMs <= 0) {
+        setTimeRemaining(null);
+        return;
+      }
+
+      // Format remaining time
+      const minutes = Math.floor(remainingMs / 60000);
+      const seconds = Math.floor((remainingMs % 60000) / 1000);
+      const string = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+      setTimeRemaining(string);
+    };
+
+    // Update immediately
+    updateTimeRemaining();
+    
+    // Then update every second
+    const interval = setInterval(updateTimeRemaining, 1000);
+    
+    return () => clearInterval(interval);
+  }, [expirationTime]);
 
   const handleVote = async (vote: "keep" | "skip") => {
     if (hasVoted) return;
@@ -100,10 +113,12 @@ export function StreamInfo() {
               <span className="text-gray-500 text-sm md:ml-4">by <span className="font-semibold">Fletchstud</span></span>
             </div>
             <div className="flex items-center gap-5">
+              {timeRemaining && (
                 <div className="flex items-center gap-1">
                     <ClockIcon className="w-5 h-5" />
-                    <span className="text-gray-500 text-sm">10:00</span>
+                    <span className="text-gray-500 text-sm">{timeRemaining || "Not available"}</span>
                 </div>
+              )}
             <div className="flex items-center gap-2 mt-2 md:mt-0">
               <button
                 onClick={() => handleVote("keep")}
