@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { HandThumbUpIcon, HandThumbDownIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { useStreamEvents } from "../hooks/useStreamEvents";
 
@@ -12,12 +12,13 @@ interface Streamer {
 }
 
 export function StreamInfo() {
-  const { expirationTime } = useStreamEvents();
+  const { formattedTimeRemaining, expirationTime } = useStreamEvents();
   const [currentStreamer, setCurrentStreamer] = useState<Streamer | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [likeCount, setLikeCount] = useState(0); // Placeholder
   const [dislikeCount, setDislikeCount] = useState(0); // Placeholder
-  const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
+  const [timeAdded, setTimeAdded] = useState<number | null>(null);
+  const prevExpirationTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     // Initial load
@@ -50,36 +51,19 @@ export function StreamInfo() {
       eventSource.close();
     };
   }, []);
+
   useEffect(() => {
-    if (!expirationTime) {
-      setTimeRemaining(null);
-      return;
-    }
-
-    const updateTimeRemaining = () => {
-      const now = Date.now();
-      // Convert expiration time from seconds to milliseconds for comparison
-      const remainingMs = (expirationTime * 1000) - now;
-      if (remainingMs <= 0) {
-        setTimeRemaining(null);
-        return;
+    // Calculate time added when expiration time changes
+    if (expirationTime && prevExpirationTimeRef.current) {
+      const addedSeconds = expirationTime - prevExpirationTimeRef.current;
+      if (addedSeconds > 0) {
+        setTimeAdded(addedSeconds);
+        // Reset time added after animation duration
+        setTimeout(() => setTimeAdded(null), 2000);
       }
-
-      // Format remaining time
-      const minutes = Math.floor(remainingMs / 60000);
-      const seconds = Math.floor((remainingMs % 60000) / 1000);
-      const string = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-
-      setTimeRemaining(string);
-    };
-
-    // Update immediately
-    updateTimeRemaining();
+    }
     
-    // Then update every second
-    const interval = setInterval(updateTimeRemaining, 1000);
-    
-    return () => clearInterval(interval);
+    prevExpirationTimeRef.current = expirationTime;
   }, [expirationTime]);
 
   const handleVote = async (vote: "keep" | "skip") => {
@@ -113,32 +97,39 @@ export function StreamInfo() {
               <span className="text-gray-500 text-sm md:ml-4">by <span className="font-semibold">Fletchstud</span></span>
             </div>
             <div className="flex items-center gap-5">
-              {timeRemaining && (
-                <div className="flex items-center gap-1">
-                    <ClockIcon className="w-5 h-5" />
-                    <span className="text-gray-500 text-sm">{timeRemaining || "Not available"}</span>
+              {formattedTimeRemaining && (
+                <div className="flex items-center gap-1 relative">
+                  <ClockIcon className="w-5 h-5" />
+                  <span className="text-gray-500 text-sm">{formattedTimeRemaining}</span>
+                  
+                  {timeAdded && (
+                    <span 
+                      className="absolute -top-5 left-1/2 transform -translate-x-1/2 text-green-400 font-medium text-sm animate-fade-up"
+                    >
+                      +{timeAdded}
+                    </span>
+                  )}
                 </div>
               )}
-            <div className="flex items-center gap-2 mt-2 md:mt-0">
-              <button
-                onClick={() => handleVote("keep")}
-                disabled={hasVoted}
-                className="flex items-center gap-1 px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
-              >
-                <HandThumbUpIcon className="w-5 h-5" />
-                <span>{likeCount}</span>
-              </button>
-              <button
-                onClick={() => handleVote("skip")}
-                disabled={hasVoted}
-                className="flex items-center gap-1 px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
-              >
-                <HandThumbDownIcon className="w-5 h-5" />
-                <span>{dislikeCount}</span>
-              </button>
+              <div className="flex items-center gap-2 mt-2 md:mt-0">
+                <button
+                  onClick={() => handleVote("keep")}
+                  disabled={hasVoted}
+                  className="flex items-center gap-1 px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+                >
+                  <HandThumbUpIcon className="w-5 h-5" />
+                  <span>{likeCount}</span>
+                </button>
+                <button
+                  onClick={() => handleVote("skip")}
+                  disabled={hasVoted}
+                  className="flex items-center gap-1 px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+                >
+                  <HandThumbDownIcon className="w-5 h-5" />
+                  <span>{dislikeCount}</span>
+                </button>
+              </div>
             </div>
-            </div>
-
           </div>
           {/* Description box */}
           <div className="mt-3 bg-gray-100 dark:bg-gray-800 rounded-lg p-4 text-sm text-gray-800 dark:text-gray-200">

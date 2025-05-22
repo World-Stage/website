@@ -11,6 +11,8 @@ export function useStreamEvents() {
     expirationTime: null
   });
   const [isPlaying, setIsPlaying] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
+  const [formattedTimeRemaining, setFormattedTimeRemaining] = useState<string | null>(null);
 
   useEffect(() => {
     // Initial stream load
@@ -46,9 +48,56 @@ export function useStreamEvents() {
     };
   }, []);
 
+  // Update seconds remaining calculation
+  useEffect(() => {
+    if (!streamData.expirationTime) {
+      setSecondsRemaining(null);
+      setFormattedTimeRemaining(null);
+      return;
+    }
+    
+    const calculateTimeRemaining = () => {
+      const now = Math.floor(Date.now() / 1000); // Current time in seconds
+      const expirationTime = streamData.expirationTime as number;
+      const remaining = expirationTime - now;
+      
+      if (remaining <= 0) {
+        setSecondsRemaining(0);
+        setFormattedTimeRemaining(null);
+        return;
+      }
+      
+      setSecondsRemaining(remaining);
+      
+      // Format time for display
+      if (remaining >= 3600) {
+        // Format as hours:minutes:seconds
+        const hours = Math.floor(remaining / 3600);
+        const minutes = Math.floor((remaining % 3600) / 60);
+        const seconds = remaining % 60;
+        setFormattedTimeRemaining(`${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+      } else {
+        // Format as minutes:seconds
+        const minutes = Math.floor(remaining / 60);
+        const seconds = remaining % 60;
+        setFormattedTimeRemaining(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+      }
+    };
+    
+    // Calculate immediately
+    calculateTimeRemaining();
+    
+    // Update every second
+    const interval = setInterval(calculateTimeRemaining, 1000);
+    
+    return () => clearInterval(interval);
+  }, [streamData.expirationTime]);
+
   return {
     streamUrl: streamData.hlsUrl,
     expirationTime: streamData.expirationTime,
+    secondsRemaining,
+    formattedTimeRemaining,
     isPlaying,
     setIsPlaying
   };
