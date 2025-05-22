@@ -14,7 +14,7 @@ export function CountdownTimer({ seconds }: CountdownTimerProps) {
   const strokeDashoffset = circumference * (1 - percentage / 100);
   
   return (
-    <div className="absolute top-4 right-4 z-50 flex items-center justify-center w-16 h-16">
+    <div className="absolute top-4 right-4 z-50 flex items-center justify-center w-16 h-16 pointer-events-none">
       <svg width="100%" height="100%" viewBox="0 0 100 100">
         {/* Background circle */}
         <circle 
