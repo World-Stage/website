@@ -164,10 +164,8 @@ export function StreamPlayer() {
           
           {/* Custom controls overlay */}
           <div className={`absolute inset-0 pointer-events-none flex flex-col justify-between ${showControls ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
-            {/* Top bar with countdown timer */}
-            <div className="pointer-events-none">
-              {showCountdown && <CountdownTimer seconds={secondsRemaining} />}
-            </div>
+            {/* Top bar (empty now since countdown moved outside) */}
+            <div className="pointer-events-none"></div>
             
             {/* Bottom controls bar */}
             <div className="bg-gradient-to-t from-black/80 to-transparent p-4 pointer-events-auto">
@@ -251,6 +249,13 @@ export function StreamPlayer() {
               </div>
             </div>
           </div>
+          
+          {/* Countdown timer - always visible when under 5 seconds */}
+          {showCountdown && (
+            <div className="absolute top-0 right-0 pointer-events-none z-50">
+              <CountdownTimer seconds={secondsRemaining} />
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex items-center justify-center h-full">
