@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef, use } from "react";
+import { useEffect, useState, useRef } from "react";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
-import { UserGroupIcon } from "@heroicons/react/24/outline";
+import { UserGroupIcon, ClockIcon } from "@heroicons/react/24/outline";
+import { useEncoreEvents } from "../hooks/useEncoreEvents";
+import { useStream } from "@/contexts/StreamContext";
 
 interface ChatMessage {
   sender: string;
@@ -27,6 +29,8 @@ export function Chat() {
   const [inputMessage, setInputMessage] = useState("");
   const [stompClient, setStompClient] = useState<Client | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const { encoreInformation } = useEncoreEvents();
+  const { formattedTimeRemaining } = useStream();
 
   useEffect(() => {
     const socket = new SockJS('http://localhost:8082/chat');
@@ -91,6 +95,19 @@ export function Chat() {
     setInputMessage('');
   };
 
+  // Calculate gradient background style for the encore progress bar
+  const getProgressGradient = () => {
+    const percentage = encoreInformation?.encorePercent || 0;
+    return {
+      background: `linear-gradient(to right, 
+        rgba(147, 51, 234, 1) 0%, 
+        rgba(59, 130, 246, 1) ${percentage}%, 
+        rgba(30, 41, 59, 0.7) ${percentage}%, 
+        rgba(30, 41, 59, 0.7) 100%)`,
+      width: '100%'
+    };
+  };
+
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg flex flex-col border border-gray-200 dark:border-gray-700 h-[500px] lg:h-[calc(100vh-64px)]">
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -100,6 +117,29 @@ export function Chat() {
           <span className="text-red-400 text-xs">{formatNumber(viewers)} viewers</span>
         </div>
       </div>
+      
+      {/* Encore progress banner */}
+      {encoreInformation?.encorePercent != null && encoreInformation.encorePercent > 0 && (
+        <div className="px-4 py-2" style={getProgressGradient()}>
+          <div className="flex justify-between items-center text-white">
+            <div className="flex items-center gap-1">
+              <span className="font-bold text-sm">Encore Hype</span>
+              <span className="text-xs bg-purple-500 px-2 rounded-full">Streak 1</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {formattedTimeRemaining && (
+                <div className="flex items-center gap-1">
+                  <ClockIcon className="w-4 h-4" />
+                  <span className="text-xs">{formattedTimeRemaining}</span>
+                </div>
+              )}
+              <span className="font-bold">{encoreInformation.encorePercent}%</span>
+            </div>
+          </div>
+          <p className="text-xs text-white/80 mt-1">🔥 {encoreInformation.encorePercent}% of viewers want an encore! - {encoreInformation.encoreNeeded} more needed</p>
+        </div>
+      )}
+      
       <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto px-4 py-2 space-y-2 text-sm"

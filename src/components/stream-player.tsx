@@ -1,13 +1,13 @@
 "use client";
 
 import ReactPlayer from "react-player";
-import { useStreamEvents } from "../hooks/useStreamEvents";
 import { CountdownTimer } from "./countdown-timer";
 import { useState, useRef, useEffect } from "react";
 import { PlayIcon, PauseIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from "@heroicons/react/24/solid";
+import { useStream } from "@/contexts/StreamContext";
 
 export function StreamPlayer() {
-  const { streamUrl, isPlaying: initialIsPlaying, secondsRemaining } = useStreamEvents();
+  const { hlsUrl, isPlaying: initialIsPlaying, secondsRemaining, setIsPlaying: setContextIsPlaying } = useStream();
   const [isPlaying, setIsPlaying] = useState(initialIsPlaying);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [volume, setVolume] = useState(1);
@@ -80,7 +80,9 @@ export function StreamPlayer() {
 
   // Play/pause toggle
   const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
+    const newIsPlaying = !isPlaying;
+    setIsPlaying(newIsPlaying);
+    setContextIsPlaying(newIsPlaying);
   };
 
   // Volume controls
@@ -138,11 +140,11 @@ export function StreamPlayer() {
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {streamUrl ? (
+      {hlsUrl ? (
         <div className="relative w-full h-full">
           <ReactPlayer
             ref={playerRef}
-            url={streamUrl}
+            url={hlsUrl}
             playing={isPlaying}
             volume={isMuted ? 0 : volume}
             width="100%"
@@ -250,9 +252,9 @@ export function StreamPlayer() {
             </div>
           </div>
           
-          {/* Countdown timer - always visible when under 5 seconds */}
+          {/* Stream ending countdown overlay */}
           {showCountdown && (
-            <div className="absolute top-0 right-0 pointer-events-none z-50">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
               <CountdownTimer seconds={secondsRemaining} />
             </div>
           )}
