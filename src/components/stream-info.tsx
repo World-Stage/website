@@ -2,7 +2,7 @@
 
 import { ClockIcon, HandRaisedIcon } from "@heroicons/react/24/outline";
 import { useStream } from "@/contexts/StreamContext";
-import { useEncoreEvents } from "../hooks/useEncoreEvents";
+import { useWebSocket } from "@/contexts/WebSocetContext";
 
 export function StreamInfo() {
   const { 
@@ -11,7 +11,7 @@ export function StreamInfo() {
     timeAdded 
   } = useStream();
   
-  const { encoreInformation, hasEncored, sendEncore } = useEncoreEvents();
+  const { encoreInformation, hasEncored, sendEncore } = useWebSocket();
 
   return (
     <div className="w-full">

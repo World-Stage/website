@@ -4,10 +4,12 @@ import { StreamPlayer } from "@/components/stream-player";
 import { StreamInfo } from "@/components/stream-info";
 import { Chat } from "@/components/chat";
 import { StreamProvider } from "@/contexts/StreamContext";
+import { WebSocketProvider } from "@/contexts/WebSocetContext";
 
 export default function Home() {
   return (
     <StreamProvider>
+      <WebSocketProvider>
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main content: video + info */}
@@ -27,6 +29,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+      </WebSocketProvider>
     </StreamProvider>
   );
 }

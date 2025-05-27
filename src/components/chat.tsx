@@ -1,17 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import SockJS from "sockjs-client";
-import { Client, IMessage } from "@stomp/stompjs";
+import { useEffect, useRef } from "react";
 import { UserGroupIcon, ClockIcon } from "@heroicons/react/24/outline";
-import { useEncoreEvents } from "../hooks/useEncoreEvents";
 import { useStream } from "@/contexts/StreamContext";
-
-interface ChatMessage {
-  sender: string;
-  content: string;
-  messageType: "AUDIENCE" | "STREAMER" | "ADMIN" | "SYSTEM";
-}
+import { useWebSocket } from "@/contexts/WebSocetContext";
 
 export function formatNumber(num: number): string {
   if (num >= 1_000_000) {
@@ -24,49 +16,9 @@ export function formatNumber(num: number): string {
 }
 
 export function Chat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [viewers, setViewers] = useState<number>(0);
-  const [inputMessage, setInputMessage] = useState("");
-  const [stompClient, setStompClient] = useState<Client | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const { encoreInformation } = useEncoreEvents();
+  const { encoreInformation, messages, viewers, inputMessage, setInputMessage, sendMessage } = useWebSocket();
   const { formattedTimeRemaining } = useStream();
-
-  useEffect(() => {
-    const socket = new SockJS('http://localhost:8082/chat');
-    const client = new Client({
-      webSocketFactory: () => socket,
-      onConnect: () => {
-        client.subscribe('/topic/messages', (message: IMessage) => {
-          const newMessage = JSON.parse(message.body) as ChatMessage;
-          setMessages(prev => [...prev, newMessage]);
-        });
-        client.subscribe('/topic/viewers', (message: IMessage) => {
-          const count = JSON.parse(message.body) as number;
-          setViewers(count);
-        });
-      },
-
-    });
-
-    client.activate();
-    setStompClient(client);
-
-    return () => {
-      client.deactivate();
-    };
-  }, []);
-
-  useEffect(() => {
-      // Delay viewer count fetch slightly
-      setTimeout(() => {
-        fetch('http://localhost:8082/stream/view/count')
-          .then(res => res.json())
-          .then(data => {
-            setViewers(data.viewerCount);
-          });
-      }, 300); // tweak this if needed
-  }, []);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -78,26 +30,9 @@ export function Chat() {
     }
   }, [messages]);
 
-  const sendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || !stompClient?.connected) return;
-
-    const message: ChatMessage = {
-      sender: 'Viewer', // TODO: Replace with actual username
-      content: inputMessage.trim(),
-      messageType: "AUDIENCE"
-    };
-    stompClient.publish({
-      destination: '/app/send',
-      body: JSON.stringify(message)
-    });
-
-    setInputMessage('');
-  };
-
   // Calculate gradient background style for the encore progress bar
   const getProgressGradient = () => {
-    const percentage = encoreInformation?.encorePercent || 0;
+    const percentage = encoreInformation?.encoreProgressPercent || 0;
     return {
       background: `linear-gradient(to right, 
         rgba(147, 51, 234, 1) 0%, 
@@ -119,7 +54,7 @@ export function Chat() {
       </div>
       
       {/* Encore progress banner */}
-      {encoreInformation?.encorePercent != null && encoreInformation.encorePercent > 0 && (
+      {encoreInformation?.encoreProgressPercent != null && encoreInformation.encoreProgressPercent > 0 && (
         <div className="px-4 py-2" style={getProgressGradient()}>
           <div className="flex justify-between items-center text-white">
             <div className="flex items-center gap-1">
@@ -133,10 +68,10 @@ export function Chat() {
                   <span className="text-xs">{formattedTimeRemaining}</span>
                 </div>
               )}
-              <span className="font-bold">{encoreInformation.encorePercent}%</span>
+              <span className="font-bold">{encoreInformation.encoreProgressPercent}%</span>
             </div>
           </div>
-          <p className="text-xs text-white/80 mt-1">🔥 {encoreInformation.encorePercent}% of viewers want an encore! - {encoreInformation.encoreNeeded} more needed</p>
+          <p className="text-xs text-white/80 mt-1">🔥 Viewers want an encore! - {encoreInformation.encoreNeeded} more needed</p>
         </div>
       )}
       

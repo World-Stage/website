@@ -5,7 +5,7 @@ import { Client, IMessage } from "@stomp/stompjs";
 export interface Encore {
   encoreTotal: number;
   encoreNeeded: number | null;
-  encorePercent?: number | null;
+  encoreProgressPercent?: number | null;
 }
 
 export function useEncoreEvents() {

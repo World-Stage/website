@@ -254,7 +254,7 @@ export function StreamPlayer() {
           
           {/* Stream ending countdown overlay */}
           {showCountdown && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
+            <div className="absolute top-4 right-4 z-10">
               <CountdownTimer seconds={secondsRemaining} />
             </div>
           )}
