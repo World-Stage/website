@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { UserGroupIcon, ClockIcon } from "@heroicons/react/24/outline";
+import { UserGroupIcon } from "@heroicons/react/24/outline";
 import { useStream } from "@/contexts/StreamContext";
 import { useWebSocket } from "@/contexts/WebSocetContext";
+import { EncoreBanner } from "./encore-banner";
 
 export function formatNumber(num: number): string {
   if (num >= 1_000_000) {
@@ -54,7 +55,8 @@ export function Chat() {
       </div>
       
       {/* Encore progress banner */}
-      {encoreInformation?.encoreProgressPercent != null && encoreInformation.encoreProgressPercent > 0 && (
+      <EncoreBanner />
+      {/* {encoreInformation?.encoreProgressPercent != null && encoreInformation.encoreProgressPercent > 0 && (
         <div className="px-4 py-2" style={getProgressGradient()}>
           <div className="flex justify-between items-center text-white">
             <div className="flex items-center gap-1">
@@ -73,7 +75,7 @@ export function Chat() {
           </div>
           <p className="text-xs text-white/80 mt-1">🔥 Viewers want an encore! - {encoreInformation.encoreNeeded} more needed</p>
         </div>
-      )}
+      )} */}
       
       <div
         ref={messagesContainerRef}
