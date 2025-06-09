@@ -1,4 +1,22 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WorldStage Live Streaming Platform
+
+This is the frontend web application for WorldStage, a modern live streaming platform that allows viewers to watch streams, interact via chat, and participate in encore events.
+
+## Features
+
+- **Live Streaming**: HLS-based video streaming with custom player controls
+- **Real-time Chat**: Interactive chat with support for different message types (audience, streamer, admin, system)
+- **Encore System**: Viewers can contribute to request an encore from streamers
+- **Dynamic UI**: Responsive design that works across different device sizes
+- **Real-time Updates**: Server-sent events (SSE) for live updates to stream information
+
+## Technology Stack
+
+- [Next.js](https://nextjs.org) - React framework for the frontend
+- [TailwindCSS](https://tailwindcss.com) - Utility-first CSS framework for styling
+- [Stomp.js](https://github.com/stomp-js/stompjs) - WebSocket client for real-time chat
+- [HLS.js](https://github.com/video-dev/hls.js/) - HTTP Live Streaming client
+- [React Player](https://github.com/cookpete/react-player) - React component for video playback
 
 ## Getting Started
 
@@ -16,9 +34,14 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a custom font family.
+
+## Backend Requirements
+
+This frontend application requires a running backend server. You can do so buy running docker compose in local-docker-platform. This will spin up the nginx-rtmp server and Spring Boot API.
+
 
 ## Learn More
 
