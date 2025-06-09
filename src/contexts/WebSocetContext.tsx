@@ -55,6 +55,14 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         onConnect: () => {
           client.subscribe('/encore', (message: IMessage) => {
             const encoreData = JSON.parse(message.body);
+            
+            // Reset encore state when a new stream starts
+            if (encoreData.encoreTotal === 0 && 
+                encoreData.encoreNeeded === null && 
+                encoreData.encoreProgressPercent === 0) {
+              setHasEncored(false);
+            }
+            
             setEncoreInformation(encoreData);
           });
 
