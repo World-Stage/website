@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 
 interface Streamer {
   id: string;
@@ -30,7 +30,7 @@ export function StreamProvider({ children }: { children: ReactNode }) {
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const [formattedTimeRemaining, setFormattedTimeRemaining] = useState<string | null>(null);
   const [timeAdded, setTimeAdded] = useState<number | null>(null);
-  const [prevExpirationTime, setPrevExpirationTime] = useState<number | null>(null);
+  const prevExpirationTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     // Initial stream load
@@ -74,13 +74,13 @@ export function StreamProvider({ children }: { children: ReactNode }) {
       console.log('Stream expiration time updated (seconds):', newExpirationTime);
       
       // Check if time was added
-      if (prevExpirationTime && newExpirationTime > prevExpirationTime) {
-        setTimeAdded(newExpirationTime - prevExpirationTime);
+      if (prevExpirationTimeRef.current && newExpirationTime > prevExpirationTimeRef.current) {
+        setTimeAdded(newExpirationTime - prevExpirationTimeRef.current);
         // Reset time added after animation duration
         setTimeout(() => setTimeAdded(null), 2000);
       }
       
-      setPrevExpirationTime(newExpirationTime);
+      prevExpirationTimeRef.current = newExpirationTime;
       setExpirationTime(newExpirationTime);
     });
 

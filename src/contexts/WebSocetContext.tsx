@@ -102,7 +102,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
           if (!prev) return {
             encoreTotal: 1,
             encoreNeeded: null,
-            encorePercentage: undefined
+            encoreProgressPercent: null
           };
           return {
             ...prev,
