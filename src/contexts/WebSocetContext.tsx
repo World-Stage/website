@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { Client, IMessage } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+import { useAuth } from './AuthContext';
 
 interface WebSocketContextType {
     encoreInformation: Encore | null;
@@ -29,6 +30,7 @@ export interface Encore {
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
+    const { user } = useAuth();
     const [encoreInformation, setEncoreInformation] = useState<Encore | null>(null);
     const [hasEncored, setHasEncored] = useState(false);
     const [stompClient, setStompClient] = useState<Client | null>(null);
@@ -87,13 +89,13 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     }, []);
   
     const sendEncore = async () => {
-      if (hasEncored || !stompClient?.connected) return;
+      if (hasEncored || !stompClient?.connected || !user) return;
       
       try {
         stompClient.publish({
           destination: '/app/encore',
           body: JSON.stringify({
-            userId: crypto.randomUUID() //TODO update to user id
+            userId: user.id
           })
         });
         
@@ -116,10 +118,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputMessage.trim() || !stompClient?.connected) return;
-    
+        console.log(stompClient);
+        if (!inputMessage.trim() || !stompClient?.connected || !user) return;
         const message: ChatMessage = {
-          sender: 'Viewer', // TODO: Replace with actual username
+          sender: user.username,
           content: inputMessage.trim(),
           messageType: "AUDIENCE"
         };
