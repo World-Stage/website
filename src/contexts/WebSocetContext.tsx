@@ -30,7 +30,7 @@ export interface Encore {
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const [encoreInformation, setEncoreInformation] = useState<Encore | null>(null);
     const [hasEncored, setHasEncored] = useState(false);
     const [stompClient, setStompClient] = useState<Client | null>(null);
@@ -38,23 +38,22 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     const [viewers, setViewers] = useState<number>(0);
     const [inputMessage, setInputMessage] = useState("");
 
-    useEffect(() => {
-        // Delay viewer count fetch slightly
-        setTimeout(() => {
-          fetch('http://localhost:8082/stream/view/count')
-            .then(res => res.json())
-            .then(data => {
-              setViewers(data.viewerCount);
-            });
-        }, 300); // tweak this if needed
-    }, []);
-    
-    useEffect(() => {
-      // Connect to encore WebSocket
+    // Function to create and connect WebSocket
+    const createWebSocketConnection = (includeAuth = false) => {
+      // Disconnect existing client if any
+      if (stompClient) {
+        stompClient.deactivate();
+      }
+
       const socket = new SockJS('http://localhost:8082/ws');
       const client = new Client({
         webSocketFactory: () => socket,
+        connectHeaders: includeAuth && user ? {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        } : {},
         onConnect: () => {
+          console.log('WebSocket connected', includeAuth ? 'with auth' : 'anonymously');
+          
           client.subscribe('/encore', (message: IMessage) => {
             const encoreData = JSON.parse(message.body);
             
@@ -77,23 +76,61 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
             setViewers(count);
           });
         },
+        onDisconnect: () => {
+          console.log('WebSocket disconnected');
+        },
+        onStompError: (frame) => {
+          console.error('WebSocket STOMP error:', frame);
+        }
       });
-  
+
       client.activate();
       setStompClient(client);
+    };
+
+    useEffect(() => {
+        // Delay viewer count fetch slightly
+        setTimeout(() => {
+          fetch('http://localhost:8082/stream/view/count')
+            .then(res => res.json())
+            .then(data => {
+              setViewers(data.viewerCount);
+            });
+        }, 300); // tweak this if needed
+    }, []);
+    
+    // Initial connection (anonymous)
+    useEffect(() => {
+      createWebSocketConnection(false);
       
-  
       return () => {
-        client.deactivate();
+        if (stompClient) {
+          stompClient.deactivate();
+        }
       };
     }, []);
+
+    // Reconnect with auth when user logs in, or anonymously when they log out
+    useEffect(() => {
+      if (isAuthenticated && user) {
+        console.log('User authenticated, reconnecting WebSocket with auth');
+        createWebSocketConnection(true);
+      } else if (!isAuthenticated && stompClient?.connected) {
+        console.log('User logged out, reconnecting WebSocket anonymously');
+        createWebSocketConnection(false);
+      }
+    }, [isAuthenticated, user]);
   
     const sendEncore = async () => {
       if (hasEncored || !stompClient?.connected || !user) return;
       
       try {
+        const accessToken = localStorage.getItem('accessToken');
         stompClient.publish({
           destination: '/app/encore',
+          headers: accessToken ? {
+            'Authorization': `Bearer ${accessToken}`
+          } : {},
           body: JSON.stringify({
             userId: user.id
           })
@@ -118,8 +155,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        console.log(stompClient);
         if (!inputMessage.trim() || !stompClient?.connected || !user) return;
+        
+        const accessToken = localStorage.getItem('accessToken');
         const message: ChatMessage = {
           sender: user.username,
           content: inputMessage.trim(),
@@ -127,6 +165,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         };
         stompClient.publish({
           destination: '/app/send',
+          headers: accessToken ? {
+            'Authorization': `Bearer ${accessToken}`
+          } : {},
           body: JSON.stringify(message)
         });
     
