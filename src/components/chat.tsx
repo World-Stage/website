@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UserGroupIcon } from "@heroicons/react/24/outline";
-import { useStream } from "@/contexts/StreamContext";
 import { useWebSocket } from "@/contexts/WebSocetContext";
 import { EncoreBanner } from "./encore-banner";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "./auth/AuthModal";
 
 export function formatNumber(num: number): string {
   if (num >= 1_000_000) {
@@ -18,8 +19,9 @@ export function formatNumber(num: number): string {
 
 export function Chat() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const { encoreInformation, messages, viewers, inputMessage, setInputMessage, sendMessage } = useWebSocket();
-  const { formattedTimeRemaining } = useStream();
+  const { messages, viewers, inputMessage, setInputMessage, sendMessage } = useWebSocket();
+  const { isAuthenticated } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -31,17 +33,29 @@ export function Chat() {
     }
   }, [messages]);
 
-  // Calculate gradient background style for the encore progress bar
-  const getProgressGradient = () => {
-    const percentage = encoreInformation?.encoreProgressPercent || 0;
-    return {
-      background: `linear-gradient(to right, 
-        rgba(147, 51, 234, 1) 0%, 
-        rgba(59, 130, 246, 1) ${percentage}%, 
-        rgba(30, 41, 59, 0.7) ${percentage}%, 
-        rgba(30, 41, 59, 0.7) 100%)`,
-      width: '100%'
-    };
+  // Handler for unauthenticated users
+  const handleInputFocus = () => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    setInputMessage(e.target.value);
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    console.log(isAuthenticated, e);
+    if (!isAuthenticated) {
+      e.preventDefault();
+      setShowAuthModal(true);
+      return;
+    }
+    sendMessage(e);
   };
 
   return (
@@ -107,21 +121,25 @@ export function Chat() {
           );
         })}
       </div>
-      <form onSubmit={sendMessage} className="flex gap-2 p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+      <form onSubmit={handleFormSubmit} className="flex gap-2 p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <input
           type="text"
           value={inputMessage}
-          onChange={(e) => setInputMessage(e.target.value)}
-          placeholder="Send a message"
-          className="flex-1 px-3 py-2 rounded bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+          onFocus={handleInputFocus}
+          onChange={handleInputChange}
+          placeholder={isAuthenticated ? "Send a message" : "Sign in to chat"}
+          className="flex-1 px-3 py-2 rounded bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm disabled:bg-gray-100 dark:disabled:bg-gray-800"
+          disabled={!isAuthenticated}
         />
         <button
           type="submit"
-          className="px-4 py-2 bg-purple-600 text-white rounded font-semibold hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+          disabled={!isAuthenticated || !inputMessage.trim()}
+          className="px-4 py-2 bg-purple-600 text-white rounded font-semibold hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
         >
           Send
         </button>
       </form>
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 } 

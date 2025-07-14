@@ -1,8 +1,8 @@
 "use client";
 
-import { ClockIcon, HandRaisedIcon } from "@heroicons/react/24/outline";
+import { ClockIcon } from "@heroicons/react/24/outline";
 import { useStream } from "@/contexts/StreamContext";
-import { useWebSocket } from "@/contexts/WebSocetContext";
+import { EncoreButton } from "./encore-button";
 
 export function StreamInfo() {
   const { 
@@ -11,7 +11,7 @@ export function StreamInfo() {
     timeAdded 
   } = useStream();
   
-  const { encoreInformation, hasEncored, sendEncore } = useWebSocket();
+
 
   return (
     <div className="w-full">
@@ -39,14 +39,7 @@ export function StreamInfo() {
                 </div>
               )}
               <div className="flex items-center gap-2 mt-2 md:mt-0">
-                <button
-                  onClick={sendEncore}
-                  disabled={hasEncored}
-                  className="flex items-center gap-1 px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white disabled:opacity-50"
-                >
-                  <HandRaisedIcon className="w-5 h-5" />
-                  <span>Encore {encoreInformation?.encoreTotal ? `(${encoreInformation.encoreTotal})` : ''}</span>
-                </button>
+                <EncoreButton />
               </div>
             </div>
           </div>
