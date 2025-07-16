@@ -17,6 +17,7 @@ interface StreamContextType {
   secondsRemaining: number | null;
   formattedTimeRemaining: string | null;
   timeAdded: number | null;
+  streamId: string; // Add this
   setIsPlaying: (isPlaying: boolean) => void;
 }
 
@@ -30,6 +31,7 @@ export function StreamProvider({ children }: { children: ReactNode }) {
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const [formattedTimeRemaining, setFormattedTimeRemaining] = useState<string | null>(null);
   const [timeAdded, setTimeAdded] = useState<number | null>(null);
+  const [streamId, setStreamId] = useState<string>(''); // Add this
   const prevExpirationTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -54,9 +56,10 @@ export function StreamProvider({ children }: { children: ReactNode }) {
     eventSource.addEventListener('new-stream', event => {
       const data = JSON.parse(event.data);
       const streamUrl = data.hlsUrl.replace('nginx-rtmp:8080', 'localhost:8080');
-      console.log('New stream detected:', streamUrl);
+      console.log('New stream detected:', data);
       setHlsUrl(streamUrl);
       setIsPlaying(true);
+      setStreamId(data.id); // Use the unique stream ID
     });
 
     eventSource.addEventListener('stream-update', event => {
@@ -82,6 +85,22 @@ export function StreamProvider({ children }: { children: ReactNode }) {
       
       prevExpirationTimeRef.current = newExpirationTime;
       setExpirationTime(newExpirationTime);
+    });
+
+    eventSource.addEventListener('stream-ended', event => {
+      const data = JSON.parse(event.data);
+      console.log('Stream ended:', data);
+      
+      // Clear all stream-related state
+      setHlsUrl('');
+      setExpirationTime(null);
+      setCurrentStreamer(null);
+      setIsPlaying(false);
+      setSecondsRemaining(null);
+      setFormattedTimeRemaining(null);
+      setTimeAdded(null);
+      setStreamId(''); // Clear stream ID
+      prevExpirationTimeRef.current = null;
     });
 
     eventSource.onerror = err => console.error('SSE error:', err);
@@ -143,6 +162,7 @@ export function StreamProvider({ children }: { children: ReactNode }) {
     secondsRemaining,
     formattedTimeRemaining,
     timeAdded,
+    streamId, // Add this to the context
     setIsPlaying
   };
 
