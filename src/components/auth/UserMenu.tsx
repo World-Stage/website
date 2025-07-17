@@ -4,15 +4,13 @@ import { useState, useRef, useEffect } from 'react';
 import {
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
-  GlobeAltIcon,
-  InformationCircleIcon,
-  TagIcon,
-  ArrowRightIcon,
+  HomeIcon,
   ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import { DropdownThemeToggle } from '@/components/theme-provider';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface UserMenuProps {
   onShowAuthModal: () => void;
@@ -22,6 +20,8 @@ export function UserMenu({ onShowAuthModal }: UserMenuProps) {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const isHomePage = pathname === '/';
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -81,9 +81,22 @@ export function UserMenu({ onShowAuthModal }: UserMenuProps) {
             {/* Separator */}
             <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
 
+            {/* Home Link - Only shown when not on home page */}
+            {!isHomePage && (
+              <Link
+                href="/"
+                className="flex items-center w-full px-4 py-3 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <HomeIcon className="w-5 h-5 mr-3" />
+                <span>Go Back Home</span>
+              </Link>
+            )}
+
             {/* Dashboard Link - Only shown when authenticated */}
             {user && (
               <>
+                {!isHomePage && <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>}
                 <Link
                   href="/dashboard"
                   className="flex items-center w-full px-4 py-3 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"

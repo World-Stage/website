@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -69,15 +70,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           } lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-10 w-64 transition-transform duration-300 ease-in-out bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 overflow-y-auto`}
         >
-          <div className="p-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Creator Dashboard</h2>
-            <nav className="space-y-1">
-              {/* Navigation items will be added in the next task */}
-              <div className="py-2 px-3 text-gray-700 dark:text-gray-300 rounded-md">
-                Navigation items will be added in the next task
-              </div>
-            </nav>
-          </div>
+          <DashboardSidebar 
+            isMobileSidebarOpen={isMobileSidebarOpen}
+            setIsMobileSidebarOpen={setIsMobileSidebarOpen}
+          />
         </aside>
         
         {/* Main content */}
