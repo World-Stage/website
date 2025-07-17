@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { UserGroupIcon } from "@heroicons/react/24/outline";
-import { useWebSocket } from "@/contexts/WebSocetContext";
+import { useWebSocket } from "@/contexts/hooks";
 import { EncoreBanner } from "./encore-banner";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "./auth/AuthModal";

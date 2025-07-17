@@ -1,5 +1,4 @@
-import { useWebSocket } from "@/contexts/WebSocetContext";
-import { useStream } from "@/contexts/StreamContext";
+import { useWebSocket, useStream } from "@/contexts/hooks";
 import { ClockIcon } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 

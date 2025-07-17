@@ -1,7 +1,7 @@
 "use client";
 
 import { ClockIcon } from "@heroicons/react/24/outline";
-import { useStream } from "@/contexts/StreamContext";
+import { useStream } from "@/contexts/hooks";
 import { EncoreButton } from "./encore-button";
 
 export function StreamInfo() {

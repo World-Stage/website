@@ -4,7 +4,7 @@ import ReactPlayer from "react-player";
 import { CountdownTimer } from "./countdown-timer";
 import { useState, useRef, useEffect } from "react";
 import { SpeakerWaveIcon, SpeakerXMarkIcon } from "@heroicons/react/24/solid";
-import { useStream } from "@/contexts/StreamContext";
+import { useStream } from "@/contexts/hooks";
 
 export function StreamPlayer() {
   const { hlsUrl, secondsRemaining, streamId } = useStream();

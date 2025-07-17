@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ConnectionManagerWrapper } from "@/lib/connection";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,9 +27,11 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <main className="min-h-screen bg-background">
-              {children}
-            </main>
+            <ConnectionManagerWrapper>
+              <main className="min-h-screen bg-background">
+                {children}
+              </main>
+            </ConnectionManagerWrapper>
           </AuthProvider>
         </ThemeProvider>
       </body>

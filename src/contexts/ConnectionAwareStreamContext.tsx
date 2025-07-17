@@ -169,7 +169,7 @@ export function ConnectionAwareStreamProvider({
 export function useStream() {
   const context = useContext(StreamContext);
   if (context === undefined) {
-    throw new Error('useStream must be used within a ConnectionAwareStreamProvider');
+    throw new Error('useStream must be used within a StreamProvider');
   }
   return context;
 }

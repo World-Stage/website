@@ -4,7 +4,6 @@ import { StreamPlayer } from "@/components/stream-player";
 import { StreamInfo } from "@/components/stream-info";
 import { Chat } from "@/components/chat";
 import { Header } from "@/components/Header";
-import { ProtectedFeature } from "@/components/auth/ProtectedFeature";
 import { StreamProvider } from "@/contexts/StreamContext";
 import { WebSocketProvider } from "@/contexts/WebSocetContext";
 
