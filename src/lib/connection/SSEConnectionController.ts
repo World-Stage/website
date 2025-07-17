@@ -1,0 +1,510 @@
+import { BaseConnectionController } from './BaseConnectionController';
+import { ConnectionEventType } from './types';
+
+/**
+ * Interface for SSE state that will be preserved during disconnection
+ */
+export interface SSEState {
+  hlsUrl: string;
+  currentStreamer: Streamer | null;
+  expirationTime: number | null;
+  streamId: string;
+}
+
+/**
+ * Interface for streamer information
+ */
+export interface Streamer {
+  id: string;
+  username: string;
+  title: string;
+  timeRemaining: number;
+}
+
+/**
+ * Configuration options for SSEConnectionController
+ */
+export interface SSEConnectionControllerOptions {
+  url: string;
+  maxConnectionAttempts?: number;
+  baseReconnectDelay?: number;
+  debug?: boolean;
+  connectionTimeout?: number;
+  onConnectionEvent?: (eventType: ConnectionEventType, metadata?: any) => void;
+}
+
+/**
+ * Error types specific to SSE connections
+ */
+export enum SSEErrorType {
+  CONNECTION_ERROR = 'connection_error',
+  EVENT_ERROR = 'event_error',
+  NETWORK_ERROR = 'network_error',
+  TIMEOUT_ERROR = 'timeout_error',
+  UNKNOWN_ERROR = 'unknown_error'
+}
+
+/**
+ * SSEConnectionController
+ * 
+ * Controller for managing Server-Sent Events (SSE) connections.
+ * Handles connection establishment, termination, and state preservation.
+ * Implements reconnection with exponential backoff and error handling.
+ */
+export class SSEConnectionController extends BaseConnectionController {
+  public id: string = 'sse';
+  private eventSource: EventSource | null = null;
+  private state: SSEState;
+  private url: string;
+  private connectionTimeout: number;
+  private connectionTimer: NodeJS.Timeout | null = null;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private onConnectionEvent?: (eventType: ConnectionEventType, metadata?: any) => void;
+  private isReconnecting: boolean = false;
+  private lastErrorTime: number = 0;
+  private errorCount: number = 0;
+  private eventListeners: Map<string, (event: MessageEvent) => void> = new Map();
+
+  /**
+   * Creates a new SSEConnectionController
+   * 
+   * @param options Configuration options
+   */
+  constructor(options: SSEConnectionControllerOptions) {
+    super({
+      maxConnectionAttempts: options.maxConnectionAttempts,
+      baseReconnectDelay: options.baseReconnectDelay,
+      debug: options.debug
+    });
+
+    this.url = options.url;
+    this.state = {
+      hlsUrl: '',
+      currentStreamer: null,
+      expirationTime: null,
+      streamId: ''
+    };
+    
+    // Set connection parameters with defaults
+    this.connectionTimeout = options.connectionTimeout ?? 10000; // 10 seconds
+    this.onConnectionEvent = options.onConnectionEvent;
+
+    this.logDebug('SSEConnectionController initialized');
+  }
+
+  /**
+   * Get current state for preservation
+   * 
+   * @returns The current SSE state
+   */
+  public getState(): SSEState {
+    return { ...this.state };
+  }
+
+  /**
+   * Perform the actual connection logic
+   * 
+   * @param previousState Optional state from previous connection to restore
+   */
+  protected async performConnect(previousState?: SSEState): Promise<void> {
+    // Restore previous state if available
+    if (previousState) {
+      this.state = { ...previousState };
+      this.logDebug('Restored previous state', this.state);
+    }
+
+    // Clear any existing timers
+    this.clearTimers();
+
+    return new Promise((resolve, reject) => {
+      try {
+        // Create EventSource
+        this.eventSource = new EventSource(this.url);
+        
+        // Set connection timeout
+        this.connectionTimer = setTimeout(() => {
+          if (!this.isConnected) {
+            const error = new Error('Connection timeout');
+            this.handleConnectionError(error, SSEErrorType.TIMEOUT_ERROR);
+            reject(error);
+          }
+        }, this.connectionTimeout);
+
+        // Set up event listeners
+        this.eventSource.onopen = () => {
+          this.handleSuccessfulConnection();
+          resolve();
+        };
+
+        this.eventSource.onerror = (error) => {
+          const errorObj = new Error('SSE connection error');
+          this.handleConnectionError(errorObj, SSEErrorType.CONNECTION_ERROR, { originalError: error });
+          
+          // Only reject the promise if we're not connected yet
+          if (!this.isConnected) {
+            reject(errorObj);
+          }
+        };
+
+        // Set up specific event listeners
+        this.setupEventListeners();
+      } catch (error) {
+        this.handleConnectionError(error as Error, SSEErrorType.CONNECTION_ERROR);
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Perform the actual disconnection logic
+   */
+  protected async performDisconnect(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      // Clear any pending timers first to prevent reconnection attempts during disconnect
+      this.clearTimers();
+      
+      if (!this.eventSource) {
+        this.logDebug('No active EventSource to disconnect');
+        resolve();
+        return;
+      }
+
+      // Clean up event listeners
+      this.cleanupEventListeners();
+
+      // Close the EventSource
+      try {
+        this.eventSource.close();
+      } catch (error) {
+        this.logDebug('Error during EventSource close', error);
+        // Continue with cleanup even if close fails
+      }
+      
+      // Clear EventSource reference
+      this.eventSource = null;
+      
+      // Reset reconnection flags
+      this.isReconnecting = false;
+      
+      // Notify about disconnection event if handler exists
+      if (this.onConnectionEvent) {
+        this.onConnectionEvent('disconnect', { 
+          unexpected: false, 
+          timestamp: Date.now(),
+          clean: true
+        });
+      }
+      
+      this.logDebug('SSE disconnected successfully');
+      resolve();
+    });
+  }
+
+  /**
+   * Set up SSE event listeners
+   */
+  private setupEventListeners(): void {
+    if (!this.eventSource) {
+      this.logDebug('Cannot setup event listeners: EventSource not created');
+      return;
+    }
+
+    // Create event listener for new stream events
+    const newStreamHandler = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        this.state.hlsUrl = data.hlsUrl.replace('nginx-rtmp:8080', 'localhost:8080');
+        this.state.streamId = data.id;
+        this.logDebug('Received new stream event', data);
+      } catch (error) {
+        this.logDebug('Failed to process new stream event', error);
+      }
+    };
+
+    // Create event listener for stream updates
+    const streamUpdateHandler = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        this.state.currentStreamer = {
+          id: data.streamerId,
+          username: data.streamerName,
+          title: data.title,
+          timeRemaining: data.timeRemaining
+        };
+        this.logDebug('Received stream update event', data);
+      } catch (error) {
+        this.logDebug('Failed to process stream update event', error);
+      }
+    };
+
+    // Create event listener for stream expiration
+    const streamExpirationHandler = (event: MessageEvent) => {
+      try {
+        const newExpirationTime = JSON.parse(event.data);
+        this.state.expirationTime = newExpirationTime;
+        this.logDebug('Received stream expiration event', newExpirationTime);
+      } catch (error) {
+        this.logDebug('Failed to process stream expiration event', error);
+      }
+    };
+
+    // Create event listener for stream ended
+    const streamEndedHandler = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        // Clear all stream-related state
+        this.state.hlsUrl = '';
+        this.state.expirationTime = null;
+        this.state.currentStreamer = null;
+        this.state.streamId = '';
+        this.logDebug('Received stream ended event', data);
+      } catch (error) {
+        this.logDebug('Failed to process stream ended event', error);
+      }
+    };
+
+    // Add event listeners to EventSource
+    this.eventSource.addEventListener('new-stream', newStreamHandler);
+    this.eventSource.addEventListener('stream-update', streamUpdateHandler);
+    this.eventSource.addEventListener('stream-expiration', streamExpirationHandler);
+    this.eventSource.addEventListener('stream-ended', streamEndedHandler);
+
+    // Store event listeners for later cleanup
+    this.eventListeners.set('new-stream', newStreamHandler);
+    this.eventListeners.set('stream-update', streamUpdateHandler);
+    this.eventListeners.set('stream-expiration', streamExpirationHandler);
+    this.eventListeners.set('stream-ended', streamEndedHandler);
+
+    this.logDebug('Event listeners set up successfully');
+  }
+
+  /**
+   * Clean up SSE event listeners
+   */
+  private cleanupEventListeners(): void {
+    if (!this.eventSource) {
+      return;
+    }
+
+    // Remove all event listeners
+    this.eventListeners.forEach((listener, eventName) => {
+      try {
+        this.eventSource?.removeEventListener(eventName, listener);
+      } catch (error) {
+        this.logDebug(`Error removing event listener for ${eventName}`, error);
+      }
+    });
+
+    // Clear the event listeners map
+    this.eventListeners.clear();
+    this.logDebug('Event listeners cleaned up');
+  }
+
+  /**
+   * Handle successful connection
+   */
+  private handleSuccessfulConnection(): void {
+    // Clear connection timeout
+    if (this.connectionTimer) {
+      clearTimeout(this.connectionTimer);
+      this.connectionTimer = null;
+    }
+    
+    // Reset error counters on successful connection
+    this.errorCount = 0;
+    this.lastErrorTime = 0;
+    this.isReconnecting = false;
+    
+    this.logDebug('SSE connected successfully');
+    
+    // Fetch initial stream data if needed
+    this.fetchInitialStreamData();
+    
+    // Notify about connection event
+    if (this.onConnectionEvent) {
+      this.onConnectionEvent('connect', { timestamp: Date.now() });
+    }
+  }
+
+  /**
+   * Fetch initial stream data
+   */
+  private async fetchInitialStreamData(): Promise<void> {
+    try {
+      // Extract base URL from SSE URL
+      const baseUrl = this.url.split('/subscribe')[0];
+      const response = await fetch(`${baseUrl}/active`);
+      const data = await response.json();
+      
+      // Update state with initial data
+      this.state.hlsUrl = data.hlsUrl.replace('nginx-rtmp:8080', 'localhost:8080');
+      this.state.currentStreamer = {
+        id: data.streamerId,
+        username: data.streamerName,
+        title: data.title,
+        timeRemaining: data.timeRemaining
+      };
+      this.state.streamId = data.id || '';
+      
+      this.logDebug('Fetched initial stream data', data);
+    } catch (error) {
+      this.logDebug('Failed to fetch initial stream data', error);
+    }
+  }
+  
+  /**
+   * Handle connection errors
+   * 
+   * @param error The error that occurred
+   * @param errorType The type of error
+   * @param metadata Additional metadata about the error
+   */
+  private handleConnectionError(error: Error, errorType: SSEErrorType, metadata?: any): void {
+    this.logDebug(`SSE error: ${errorType}`, { error, metadata });
+    
+    // Increment error counter
+    this.errorCount++;
+    this.lastErrorTime = Date.now();
+    
+    // Notify about error event
+    if (this.onConnectionEvent) {
+      this.onConnectionEvent('error', { 
+        error: error.message, 
+        errorType, 
+        timestamp: this.lastErrorTime,
+        metadata
+      });
+    }
+    
+    // Clear any existing timers
+    this.clearTimers();
+  }
+  
+  /**
+   * Attempt to reconnect with exponential backoff
+   */
+  private attemptReconnection(): void {
+    // Don't attempt reconnection if we're already reconnecting
+    if (this.isReconnecting) {
+      this.logDebug('Already attempting to reconnect, skipping');
+      return;
+    }
+    
+    this.isReconnecting = true;
+    
+    // Calculate delay based on connection attempts
+    const delay = this.calculateBackoffDelay();
+    
+    this.logDebug(`Attempting reconnection in ${delay}ms (attempt ${this.connectionAttempts + 1}/${this.maxConnectionAttempts})`);
+    
+    // Notify about reconnection attempt
+    if (this.onConnectionEvent) {
+      this.onConnectionEvent('reconnect', { 
+        attempt: this.connectionAttempts + 1, 
+        maxAttempts: this.maxConnectionAttempts,
+        delay,
+        timestamp: Date.now()
+      });
+    }
+    
+    // Schedule reconnection attempt
+    this.reconnectTimer = setTimeout(() => {
+      // Save current state for restoration
+      const currentState = this.getState();
+      
+      // Attempt to connect
+      this.connect(currentState).catch(error => {
+        this.logDebug('Reconnection attempt failed', error);
+        // handleError is called by connect() on failure
+      });
+    }, delay);
+  }
+  
+  /**
+   * Clear all timers to prevent memory leaks
+   */
+  private clearTimers(): void {
+    if (this.connectionTimer) {
+      clearTimeout(this.connectionTimer);
+      this.connectionTimer = null;
+    }
+    
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+  
+  /**
+   * Override the base handleError method to provide more specific error handling
+   * 
+   * @param error The error that occurred
+   */
+  public override handleError(error: Error): void {
+    // Call the base implementation
+    super.handleError(error);
+    
+    // Determine error type if not already known
+    let errorType = SSEErrorType.UNKNOWN_ERROR;
+    
+    if (error.message.includes('timeout')) {
+      errorType = SSEErrorType.TIMEOUT_ERROR;
+    } else if (error.message.includes('network') || error.name === 'NetworkError') {
+      errorType = SSEErrorType.NETWORK_ERROR;
+    }
+    
+    // Handle the error with the determined type
+    this.handleConnectionError(error, errorType);
+    
+    // If we've reached the maximum number of connection attempts, stop trying
+    if (this.connectionAttempts >= this.maxConnectionAttempts) {
+      this.logDebug('Maximum connection attempts reached, giving up');
+      
+      // Notify about final failure
+      if (this.onConnectionEvent) {
+        this.onConnectionEvent('error', { 
+          error: 'Maximum connection attempts reached', 
+          errorType: SSEErrorType.CONNECTION_ERROR,
+          final: true,
+          timestamp: Date.now()
+        });
+      }
+      
+      return;
+    }
+    
+    // Otherwise, attempt reconnection
+    this.attemptReconnection();
+  }
+  
+  /**
+   * Clean up resources when the controller is no longer needed
+   * This should be called when the controller is being disposed of
+   */
+  public dispose(): void {
+    this.logDebug('Disposing SSEConnectionController');
+    
+    // Disconnect if connected
+    if (this.isConnected) {
+      this.disconnect().catch(error => {
+        this.logDebug('Error during disconnect while disposing', error);
+      });
+    }
+    
+    // Clear all timers
+    this.clearTimers();
+    
+    // Clean up event listeners
+    this.cleanupEventListeners();
+    
+    // Clear state to help garbage collection
+    this.eventSource = null;
+    this.eventListeners.clear();
+    this.state = {
+      hlsUrl: '',
+      currentStreamer: null,
+      expirationTime: null,
+      streamId: ''
+    };
+  }
+}
