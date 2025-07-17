@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { 
-  UserCircleIcon, 
+import {
+  UserCircleIcon,
   ArrowRightOnRectangleIcon,
   GlobeAltIcon,
   InformationCircleIcon,
   TagIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import { DropdownThemeToggle } from '@/components/theme-provider';
+import Link from 'next/link';
 
 interface UserMenuProps {
   onShowAuthModal: () => void;
@@ -78,6 +80,21 @@ export function UserMenu({ onShowAuthModal }: UserMenuProps) {
 
             {/* Separator */}
             <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+            {/* Dashboard Link - Only shown when authenticated */}
+            {user && (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="flex items-center w-full px-4 py-3 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <ChartBarIcon className="w-5 h-5 mr-3" />
+                  <span>Creator Dashboard</span>
+                </Link>
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+              </>
+            )}
 
             {/* Auth Action */}
             {user ? (
