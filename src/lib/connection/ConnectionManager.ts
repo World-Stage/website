@@ -119,18 +119,23 @@ export class ConnectionManager {
         return matches;
       }
       
-      // Regex match (if activeRoute is a valid regex pattern)
-      try {
-        const regex = new RegExp(activeRoute);
-        const matches = regex.test(route);
-        if (matches) {
-          console.log(`[ConnectionManager] Route ${route} matches regex pattern ${activeRoute}`);
+      // Regex match (if activeRoute starts with ^ or contains regex special chars)
+      // Only treat as regex if it looks like a regex pattern
+      if (activeRoute.startsWith('^') || activeRoute.includes('$') || activeRoute.includes('\\') || activeRoute.includes('[') || activeRoute.includes('(')) {
+        try {
+          const regex = new RegExp(activeRoute);
+          const matches = regex.test(route);
+          if (matches) {
+            console.log(`[ConnectionManager] Route ${route} matches regex pattern ${activeRoute}`);
+          }
+          return matches;
+        } catch (e) {
+          // Not a valid regex, ignore
+          return false;
         }
-        return matches;
-      } catch (e) {
-        // Not a valid regex, ignore
-        return false;
       }
+      
+      return false;
     });
     
     console.log(`[ConnectionManager] shouldBeActive(${route}) = ${result}`);

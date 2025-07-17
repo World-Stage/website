@@ -372,10 +372,10 @@ export class SSEConnectionController extends BaseConnectionController {
                 }
 
                 this.logDebug('Fetched initial stream data', data);
-                
+
                 // Trigger a state change event to notify React components immediately
                 if (this.onConnectionEvent) {
-                    this.onConnectionEvent('connect', { 
+                    this.onConnectionEvent('connect', {
                         timestamp: Date.now(),
                         initialDataFetched: true,
                         streamData: this.state
