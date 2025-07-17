@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import { usePathname } from 'next/navigation';
+import { useConnectionManager } from '../lib/connection/ConnectionManagerProvider';
 
 interface Streamer {
   id: string;
@@ -33,8 +35,33 @@ export function StreamProvider({ children }: { children: ReactNode }) {
   const [timeAdded, setTimeAdded] = useState<number | null>(null);
   const [streamId, setStreamId] = useState<string>(''); // Add this
   const prevExpirationTimeRef = useRef<number | null>(null);
+  const [eventSource, setEventSource] = useState<EventSource | null>(null);
+  const pathname = usePathname();
 
+  // Get the connection manager to check if connections should be active
+  let connectionManager;
+  try {
+    connectionManager = useConnectionManager();
+  } catch (error) {
+    // ConnectionManager not available, connections will always be active
+    console.log('ConnectionManager not available, connections will always be active');
+  }
+
+  // Setup and teardown SSE connection based on route
   useEffect(() => {
+    // Check if connections should be active based on the current route
+    if (connectionManager && !connectionManager.shouldBeActive(pathname)) {
+      console.log('SSE connections not active for route:', pathname);
+
+      // Close existing EventSource if any
+      if (eventSource) {
+        eventSource.close();
+        setEventSource(null);
+      }
+
+      return;
+    }
+
     // Initial stream load
     fetch('http://localhost:8082/stream/view/active')
       .then(res => res.json())
@@ -48,12 +75,16 @@ export function StreamProvider({ children }: { children: ReactNode }) {
           timeRemaining: data.timeRemaining
         });
         setIsPlaying(true);
+      })
+      .catch(error => {
+        console.error('Failed to fetch active stream:', error);
       });
 
     // Subscribe to SSE for stream updates
-    const eventSource = new EventSource('http://localhost:8082/stream/view/subscribe');
-    
-    eventSource.addEventListener('new-stream', event => {
+    const newEventSource = new EventSource('http://localhost:8082/stream/view/subscribe');
+    setEventSource(newEventSource);
+
+    newEventSource.addEventListener('new-stream', event => {
       const data = JSON.parse(event.data);
       const streamUrl = data.hlsUrl.replace('nginx-rtmp:8080', 'localhost:8080');
       console.log('New stream detected:', data);
@@ -62,7 +93,7 @@ export function StreamProvider({ children }: { children: ReactNode }) {
       setStreamId(data.id); // Use the unique stream ID
     });
 
-    eventSource.addEventListener('stream-update', event => {
+    newEventSource.addEventListener('stream-update', event => {
       const data = JSON.parse(event.data);
       setCurrentStreamer({
         id: data.streamerId,
@@ -72,25 +103,25 @@ export function StreamProvider({ children }: { children: ReactNode }) {
       });
     });
 
-    eventSource.addEventListener('stream-expiration', event => {
+    newEventSource.addEventListener('stream-expiration', event => {
       const newExpirationTime = JSON.parse(event.data);
       console.log('Stream expiration time updated (seconds):', newExpirationTime);
-      
+
       // Check if time was added
       if (prevExpirationTimeRef.current && newExpirationTime > prevExpirationTimeRef.current) {
         setTimeAdded(newExpirationTime - prevExpirationTimeRef.current);
         // Reset time added after animation duration
         setTimeout(() => setTimeAdded(null), 2000);
       }
-      
+
       prevExpirationTimeRef.current = newExpirationTime;
       setExpirationTime(newExpirationTime);
     });
 
-    eventSource.addEventListener('stream-ended', event => {
+    newEventSource.addEventListener('stream-ended', event => {
       const data = JSON.parse(event.data);
       console.log('Stream ended:', data);
-      
+
       // Clear all stream-related state
       setHlsUrl('');
       setExpirationTime(null);
@@ -103,12 +134,13 @@ export function StreamProvider({ children }: { children: ReactNode }) {
       prevExpirationTimeRef.current = null;
     });
 
-    eventSource.onerror = err => console.error('SSE error:', err);
+    newEventSource.onerror = err => console.error('SSE error:', err);
 
     return () => {
-      eventSource.close();
+      newEventSource.close();
+      setEventSource(null);
     };
-  }, []);
+  }, [pathname]);
 
   // Update seconds remaining calculation
   useEffect(() => {
@@ -117,19 +149,19 @@ export function StreamProvider({ children }: { children: ReactNode }) {
       setFormattedTimeRemaining(null);
       return;
     }
-    
+
     const calculateTimeRemaining = () => {
       const now = Math.floor(Date.now() / 1000); // Current time in seconds
       const remaining = expirationTime - now;
-      
+
       if (remaining <= 0) {
         setSecondsRemaining(0);
         setFormattedTimeRemaining(null);
         return;
       }
-      
+
       setSecondsRemaining(remaining);
-      
+
       // Format time for display
       if (remaining >= 3600) {
         // Format as hours:minutes:seconds
@@ -144,13 +176,13 @@ export function StreamProvider({ children }: { children: ReactNode }) {
         setFormattedTimeRemaining(`${minutes}:${seconds.toString().padStart(2, '0')}`);
       }
     };
-    
+
     // Calculate immediately
     calculateTimeRemaining();
-    
+
     // Update every second
     const interval = setInterval(calculateTimeRemaining, 1000);
-    
+
     return () => clearInterval(interval);
   }, [expirationTime]);
 

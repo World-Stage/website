@@ -62,10 +62,16 @@ export function ConnectionManagerProvider({
 
   // Handle route changes from Next.js
   useEffect(() => {
+    console.log(`[ConnectionManagerProvider] Path changed to: ${pathname}`);
+    
+    // Directly handle the route change in the ConnectionManager
+    connectionManager.handleRouteChange(pathname);
+    
+    // Also notify the RouteChangeDetector if it exists
     if (routeDetectorRef.current) {
       routeDetectorRef.current.handleRouteChange(pathname);
     }
-  }, [pathname]);
+  }, [pathname, connectionManager]);
 
   // Listen for additional navigation events that might not be captured by usePathname
   useEffect(() => {

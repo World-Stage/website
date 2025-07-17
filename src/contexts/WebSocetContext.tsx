@@ -2,6 +2,8 @@ import { createContext, useState, useEffect, useContext } from 'react';
 import { Client, IMessage } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { useAuth } from './AuthContext';
+import { usePathname } from 'next/navigation';
+import { useConnectionManager } from '../lib/connection/ConnectionManagerProvider';
 
 interface WebSocketContextType {
     encoreInformation: Encore | null;
@@ -37,9 +39,25 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [viewers, setViewers] = useState<number>(0);
     const [inputMessage, setInputMessage] = useState("");
+    const pathname = usePathname();
+    
+    // Get the connection manager to check if connections should be active
+    let connectionManager;
+    try {
+      connectionManager = useConnectionManager();
+    } catch (error) {
+      // ConnectionManager not available, connections will always be active
+      console.log('ConnectionManager not available, connections will always be active');
+    }
 
     // Function to create and connect WebSocket
     const createWebSocketConnection = (includeAuth = false) => {
+      // Check if connections should be active based on the current route
+      if (connectionManager && !connectionManager.shouldBeActive(pathname)) {
+        console.log('Connections not active for route:', pathname);
+        return;
+      }
+      
       // Disconnect existing client if any
       if (stompClient) {
         stompClient.deactivate();
@@ -88,38 +106,57 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       setStompClient(client);
     };
 
+    // Fetch viewer count when on the root page
     useEffect(() => {
-        // Delay viewer count fetch slightly
-        setTimeout(() => {
-          fetch('http://localhost:8082/stream/view/count')
-            .then(res => res.json())
-            .then(data => {
-              setViewers(data.viewerCount);
-            });
-        }, 300); // tweak this if needed
-    }, []);
-    
-    // Initial connection (anonymous)
-    useEffect(() => {
-      createWebSocketConnection(false);
+      // Only fetch viewer count if connections should be active
+      if (connectionManager && !connectionManager.shouldBeActive(pathname)) {
+        return;
+      }
       
+      // Delay viewer count fetch slightly
+      setTimeout(() => {
+        fetch('http://localhost:8082/stream/view/count')
+          .then(res => res.json())
+          .then(data => {
+            setViewers(data.viewerCount);
+          })
+          .catch(error => {
+            console.error('Failed to fetch viewer count:', error);
+          });
+      }, 300); // tweak this if needed
+    }, [pathname]);
+    
+    // Handle connection based on route and auth state
+    useEffect(() => {
+      // Check if connections should be active based on the current route
+      const shouldConnect = !connectionManager || connectionManager.shouldBeActive(pathname);
+      
+      if (shouldConnect) {
+        // Connect with auth if authenticated, otherwise connect anonymously
+        createWebSocketConnection(isAuthenticated && !!user);
+      } else {
+        // Disconnect if not on an active route
+        if (stompClient) {
+          console.log('Disconnecting WebSocket due to inactive route');
+          stompClient.deactivate();
+          setStompClient(null);
+        }
+      }
+      
+      // Clean up on unmount or route change
       return () => {
         if (stompClient) {
           stompClient.deactivate();
         }
       };
-    }, []);
-
-    // Reconnect with auth when user logs in, or anonymously when they log out
+    }, [pathname, isAuthenticated, user]);
+    
+    // Log connection state changes for debugging
     useEffect(() => {
-      if (isAuthenticated && user) {
-        console.log('User authenticated, reconnecting WebSocket with auth');
-        createWebSocketConnection(true);
-      } else if (!isAuthenticated && stompClient?.connected) {
-        console.log('User logged out, reconnecting WebSocket anonymously');
-        createWebSocketConnection(false);
+      if (stompClient) {
+        console.log('WebSocket client state:', stompClient.connected ? 'connected' : 'disconnected');
       }
-    }, [isAuthenticated, user]);
+    }, [stompClient]);
   
     const sendEncore = async () => {
       if (hasEncored || !stompClient?.connected || !user) return;

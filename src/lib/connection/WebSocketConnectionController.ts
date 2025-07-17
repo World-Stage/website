@@ -257,6 +257,10 @@ export class WebSocketConnectionController extends BaseConnectionController {
     this.lastErrorTime = 0;
     this.isReconnecting = false;
     
+    // IMPORTANT: Set the isConnected flag from the base class
+    // This prevents the timeout from firing
+    this.isConnected = true;
+    
     this.logDebug('WebSocket connected successfully');
     
     // Setup subscriptions

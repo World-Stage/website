@@ -40,10 +40,13 @@ export function ConnectionAwareWebSocketProvider({
 
     // Initialize the WebSocketConnectionController
     useEffect(() => {
+        console.log('[ConnectionAwareWebSocketProvider] Initializing WebSocketConnectionController');
+        
         const wsController = new WebSocketConnectionController({
             url: webSocketUrl,
             debug: true,
             onConnectionEvent: (eventType, metadata) => {
+                console.log(`[ConnectionAwareWebSocketProvider] Connection event: ${eventType}`);
                 if (eventType === 'connect') {
                     setIsConnected(true);
                 } else if (eventType === 'disconnect') {
@@ -58,6 +61,7 @@ export function ConnectionAwareWebSocketProvider({
 
         // Cleanup on unmount
         return () => {
+            console.log('[ConnectionAwareWebSocketProvider] Disposing WebSocketConnectionController');
             wsController.dispose();
         };
     }, [connectionManager, webSocketUrl]);
@@ -155,7 +159,7 @@ export function ConnectionAwareWebSocketProvider({
 export function useWebSocket() {
     const context = useContext(WebSocketContext);
     if (context === undefined) {
-        throw new Error('useWebSocket must be used within a WebSocketProvider');
+        throw new Error('useWebSocket must be used within a ConnectionAwareWebSocketProvider');
     }
     return context;
 }

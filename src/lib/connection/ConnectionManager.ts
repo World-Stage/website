@@ -81,11 +81,13 @@ export class ConnectionManager {
       const shouldBeActive = this.shouldBeActive(newRoute);
       
       if (shouldBeActive && !this.state.isActive) {
+        console.log(`[ConnectionManager] Activating connections for route: ${newRoute}`);
         this.activateConnections();
       } else if (!shouldBeActive && this.state.isActive) {
+        console.log(`[ConnectionManager] Deactivating connections for route: ${newRoute}`);
         this.deactivateConnections();
       } else {
-        this.logDebug(`No connection state change needed for route: ${newRoute}`);
+        console.log(`[ConnectionManager] No connection state change needed for route: ${newRoute} (shouldBeActive=${shouldBeActive}, isActive=${this.state.isActive})`);
       }
       
       this.debounceTimer = null;
@@ -100,27 +102,39 @@ export class ConnectionManager {
    */
   public shouldBeActive(route: string): boolean {
     // Check if the route matches any of the active routes
-    return this.config.activeRoutes.some(activeRoute => {
+    const result = this.config.activeRoutes.some(activeRoute => {
       // Exact match
       if (activeRoute === route) {
+        console.log(`[ConnectionManager] Route ${route} exactly matches active route ${activeRoute}`);
         return true;
       }
       
       // Pattern match (simple wildcard support)
       if (activeRoute.endsWith('*')) {
         const prefix = activeRoute.slice(0, -1);
-        return route.startsWith(prefix);
+        const matches = route.startsWith(prefix);
+        if (matches) {
+          console.log(`[ConnectionManager] Route ${route} matches wildcard pattern ${activeRoute}`);
+        }
+        return matches;
       }
       
       // Regex match (if activeRoute is a valid regex pattern)
       try {
         const regex = new RegExp(activeRoute);
-        return regex.test(route);
+        const matches = regex.test(route);
+        if (matches) {
+          console.log(`[ConnectionManager] Route ${route} matches regex pattern ${activeRoute}`);
+        }
+        return matches;
       } catch (e) {
         // Not a valid regex, ignore
         return false;
       }
     });
+    
+    console.log(`[ConnectionManager] shouldBeActive(${route}) = ${result}`);
+    return result;
   }
 
   /**

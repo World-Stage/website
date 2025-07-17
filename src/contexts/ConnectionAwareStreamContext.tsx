@@ -44,12 +44,42 @@ export function ConnectionAwareStreamProvider({
 
   // Initialize the SSEConnectionController
   useEffect(() => {
+    console.log('[ConnectionAwareStreamProvider] Initializing SSEConnectionController');
+    
     const sseController = new SSEConnectionController({
       url: sseUrl,
       debug: true,
       onConnectionEvent: (eventType, metadata) => {
+        console.log(`[ConnectionAwareStreamProvider] Connection event: ${eventType}`, metadata);
         if (eventType === 'connect') {
           setIsConnected(true);
+          
+          // If this is the initial data fetch event, sync state immediately
+          if (metadata?.initialDataFetched) {
+            console.log('[ConnectionAwareStreamProvider] Initial data fetched, syncing state immediately');
+            const state = sseController.getState();
+            setHlsUrl(state.hlsUrl);
+            setCurrentStreamer(state.currentStreamer);
+            setExpirationTime(state.expirationTime);
+            setStreamId(state.streamId);
+            if (state.hlsUrl) {
+              setIsPlaying(true);
+            }
+            console.log('[ConnectionAwareStreamProvider] Initial state synced:', state);
+          } else {
+            // Regular connection event, sync after a small delay
+            setTimeout(() => {
+              const state = sseController.getState();
+              setHlsUrl(state.hlsUrl);
+              setCurrentStreamer(state.currentStreamer);
+              setExpirationTime(state.expirationTime);
+              setStreamId(state.streamId);
+              if (state.hlsUrl) {
+                setIsPlaying(true);
+              }
+              console.log('[ConnectionAwareStreamProvider] State synced after connection:', state);
+            }, 100);
+          }
         } else if (eventType === 'disconnect') {
           setIsConnected(false);
         }
@@ -62,6 +92,7 @@ export function ConnectionAwareStreamProvider({
 
     // Cleanup on unmount
     return () => {
+      console.log('[ConnectionAwareStreamProvider] Disposing SSEConnectionController');
       sseController.dispose();
     };
   }, [connectionManager, sseUrl]);
@@ -70,32 +101,42 @@ export function ConnectionAwareStreamProvider({
   useEffect(() => {
     if (!controller) return;
 
+    // Function to sync state from controller
+    const syncState = () => {
+      const state = controller.getState();
+      setHlsUrl(state.hlsUrl);
+      setCurrentStreamer(state.currentStreamer);
+      
+      // Check if expiration time was added
+      if (state.expirationTime && prevExpirationTime && state.expirationTime > prevExpirationTime) {
+        setTimeAdded(state.expirationTime - prevExpirationTime);
+        // Reset time added after animation duration
+        setTimeout(() => setTimeAdded(null), 2000);
+      }
+      
+      setPrevExpirationTime(state.expirationTime);
+      setExpirationTime(state.expirationTime);
+      setStreamId(state.streamId);
+      
+      // If we have a valid HLS URL, set isPlaying to true
+      if (state.hlsUrl) {
+        setIsPlaying(true);
+      } else {
+        setIsPlaying(false);
+      }
+    };
+
+    // Sync immediately if connected
+    if (controller.isConnected) {
+      syncState();
+    }
+
     // Create an interval to sync state from the controller
     const syncInterval = setInterval(() => {
       if (controller.isConnected) {
-        const state = controller.getState();
-        setHlsUrl(state.hlsUrl);
-        setCurrentStreamer(state.currentStreamer);
-        
-        // Check if expiration time was added
-        if (state.expirationTime && prevExpirationTime && state.expirationTime > prevExpirationTime) {
-          setTimeAdded(state.expirationTime - prevExpirationTime);
-          // Reset time added after animation duration
-          setTimeout(() => setTimeAdded(null), 2000);
-        }
-        
-        setPrevExpirationTime(state.expirationTime);
-        setExpirationTime(state.expirationTime);
-        setStreamId(state.streamId);
-        
-        // If we have a valid HLS URL, set isPlaying to true
-        if (state.hlsUrl) {
-          setIsPlaying(true);
-        } else {
-          setIsPlaying(false);
-        }
+        syncState();
       }
-    }, 100);
+    }, 50); // Reduced interval for more responsive updates
 
     return () => {
       clearInterval(syncInterval);
@@ -169,7 +210,7 @@ export function ConnectionAwareStreamProvider({
 export function useStream() {
   const context = useContext(StreamContext);
   if (context === undefined) {
-    throw new Error('useStream must be used within a StreamProvider');
+    throw new Error('useStream must be used within a ConnectionAwareStreamProvider');
   }
   return context;
 }

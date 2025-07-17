@@ -5,12 +5,9 @@
  * Components should import from this file instead of directly from the context files.
  */
 
-// Re-export the hooks from the original contexts for backward compatibility
-// This ensures that components can continue to use the same hooks
-export { useStream } from './StreamContext';
-export { useWebSocket } from './WebSocetContext';
-
-// Also export the connection manager hook for advanced usage
+// Re-export the hooks from the connection-aware contexts
+export { useStream } from './ConnectionAwareStreamContext';
+export { useWebSocket } from './ConnectionAwareWebSocketContext';
 export { useConnectionManager } from '../lib/connection/ConnectionManagerProvider';
 
 // Re-export types that might be needed by components

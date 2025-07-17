@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { ConnectionManagerProvider } from './ConnectionManagerProvider';
 import { ConnectionAwareWebSocketProvider } from '@/contexts/ConnectionAwareWebSocketContext';
 import { ConnectionAwareStreamProvider } from '@/contexts/ConnectionAwareStreamContext';
@@ -25,8 +25,8 @@ export function ConnectionManagerWrapper({ children }: ConnectionManagerWrapperP
     activeRoutes: ['/'],
     // Set debounce time for connection operations
     debounceTime: 300,
-    // Enable debug mode in development environment
-    debug: process.env.NODE_ENV === 'development'
+    // Enable debug mode to help troubleshoot connection issues
+    debug: true
   };
 
   // WebSocket URL - use environment variable if available or fallback to default
@@ -35,21 +35,35 @@ export function ConnectionManagerWrapper({ children }: ConnectionManagerWrapperP
   // SSE URL - use environment variable if available or fallback to default
   const sseUrl = process.env.NEXT_PUBLIC_SSE_URL || 'http://localhost:8082/stream/view/subscribe';
 
+  // Add global logging to help debug connection issues
+  useEffect(() => {
+    console.log('[ConnectionManagerWrapper] Initialized with config:', config);
+    
+    return () => {
+      console.log('[ConnectionManagerWrapper] Unmounting');
+    };
+  }, []);
+
   return (
     <ConnectionManagerProvider config={config}>
-      {({ connectionManager }) => (
-        <ConnectionAwareWebSocketProvider 
-          connectionManager={connectionManager}
-          webSocketUrl={webSocketUrl}
-        >
-          <ConnectionAwareStreamProvider
+      {({ connectionManager }) => {
+        // Log the connection manager instance
+        console.log('[ConnectionManagerWrapper] ConnectionManager instance:', connectionManager);
+        
+        return (
+          <ConnectionAwareWebSocketProvider 
             connectionManager={connectionManager}
-            sseUrl={sseUrl}
+            webSocketUrl={webSocketUrl}
           >
-            {children}
-          </ConnectionAwareStreamProvider>
-        </ConnectionAwareWebSocketProvider>
-      )}
+            <ConnectionAwareStreamProvider
+              connectionManager={connectionManager}
+              sseUrl={sseUrl}
+            >
+              {children}
+            </ConnectionAwareStreamProvider>
+          </ConnectionAwareWebSocketProvider>
+        );
+      }}
     </ConnectionManagerProvider>
   );
 }
