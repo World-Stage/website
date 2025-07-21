@@ -3,18 +3,14 @@
 import ReactPlayer from "react-player";
 import { CountdownTimer } from "./countdown-timer";
 import { useState, useRef, useEffect } from "react";
-import { PlayIcon, PauseIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from "@heroicons/react/24/solid";
-import { useStream } from "@/contexts/StreamContext";
+import { SpeakerWaveIcon, SpeakerXMarkIcon } from "@heroicons/react/24/solid";
+import { useStream } from "@/contexts/hooks";
 
 export function StreamPlayer() {
-  const { hlsUrl, isPlaying: initialIsPlaying, secondsRemaining, setIsPlaying: setContextIsPlaying } = useStream();
-  const [isPlaying, setIsPlaying] = useState(initialIsPlaying);
+  const { hlsUrl, secondsRemaining, streamId } = useStream();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [played, setPlayed] = useState(0);
-  const [seeking, setSeeking] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const playerWrapperRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<ReactPlayer>(null);
@@ -22,18 +18,6 @@ export function StreamPlayer() {
 
   // Only show countdown when 5 seconds or less remaining
   const showCountdown = secondsRemaining !== null && secondsRemaining <= 5 && secondsRemaining > 0;
-
-  // Format time for display
-  const formatTime = (seconds: number) => {
-    const date = new Date(seconds * 1000);
-    const hh = date.getUTCHours();
-    const mm = date.getUTCMinutes();
-    const ss = date.getUTCSeconds().toString().padStart(2, '0');
-    if (hh) {
-      return `${hh}:${mm.toString().padStart(2, '0')}:${ss}`;
-    }
-    return `${mm}:${ss}`;
-  };
 
   // Handle fullscreen change events
   useEffect(() => {
@@ -78,13 +62,6 @@ export function StreamPlayer() {
     setShowControls(false);
   };
 
-  // Play/pause toggle
-  const handlePlayPause = () => {
-    const newIsPlaying = !isPlaying;
-    setIsPlaying(newIsPlaying);
-    setContextIsPlaying(newIsPlaying);
-  };
-
   // Volume controls
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
@@ -94,34 +71,6 @@ export function StreamPlayer() {
 
   const handleMuteToggle = () => {
     setIsMuted(!isMuted);
-  };
-
-  // Seeking controls
-  const handleSeekMouseDown = () => {
-    setSeeking(true);
-  };
-
-  const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPlayed(parseFloat(e.target.value));
-  };
-
-  const handleSeekMouseUp = (e: React.MouseEvent<HTMLInputElement>) => {
-    setSeeking(false);
-    if (playerRef.current) {
-      playerRef.current.seekTo(parseFloat((e.target as HTMLInputElement).value));
-    }
-  };
-
-  // Progress tracking
-  const handleProgress = (state: { played: number; playedSeconds: number; loaded: number; loadedSeconds: number }) => {
-    if (!seeking) {
-      setPlayed(state.played);
-    }
-  };
-
-  // Duration update
-  const handleDuration = (duration: number) => {
-    setDuration(duration);
   };
 
   // Clean up timeout on unmount
@@ -143,22 +92,49 @@ export function StreamPlayer() {
       {hlsUrl ? (
         <div className="relative w-full h-full">
           <ReactPlayer
+            key={streamId} // Use the unique stream ID
             ref={playerRef}
             url={hlsUrl}
-            playing={isPlaying}
+            playing={true}
             volume={isMuted ? 0 : volume}
             width="100%"
             height="100%"
             controls={false}
             playsinline
-            onProgress={handleProgress}
-            onDuration={handleDuration}
+            muted={false}
             config={{
               file: {
                 forceHLS: true,
                 attributes: {
                   controlsList: "nodownload",
                   onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+                },
+                // Enhanced HLS configuration for better ABR control
+                hlsOptions: {
+                  // Enable automatic quality switching (both up and down)
+                  autoStartLoad: true,
+                  // Start with lowest quality and work up (-1 = auto)
+                  startLevel: -1,
+                  // Enable bandwidth estimation
+                  enableWorker: true,
+                  
+                  // Quality switching thresholds
+                  abrEwmaDefaultEstimate: 500000, // 500kbps default estimate
+                  abrBandWidthFactor: 0.95,      // Conservative bandwidth usage
+                  abrBandWidthUpFactor: 0.7,     // More conservative for upward switching
+                  
+                  // Buffer configuration
+                  maxBufferLength: 30,           // Max buffer in seconds
+                  maxMaxBufferLength: 600,       // Absolute max buffer
+                  
+                  // Upward switching behavior
+                  abrMaxWithRealBitrate: true,   // Use real bitrate for decisions
+                  abrEwmaFastLive: 3.0,          // Fast adaptation for live content
+                  abrEwmaSlowLive: 9.0,          // Slow adaptation for stability
+                  
+                  // Quality switching frequency
+                  abrEwmaFast: 3.0,              // Fast adaptation
+                  abrEwmaSlow: 9.0,              // Slow adaptation for stability
                 }
               },
             }}
@@ -171,37 +147,9 @@ export function StreamPlayer() {
             
             {/* Bottom controls bar */}
             <div className="bg-gradient-to-t from-black/80 to-transparent p-4 pointer-events-auto">
-              {/* Progress bar */}
-              <div className="flex items-center mb-2">
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step="any"
-                  value={played}
-                  className="w-full h-1 bg-gray-600 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                  onChange={handleSeekChange}
-                  onMouseDown={handleSeekMouseDown}
-                  onMouseUp={handleSeekMouseUp}
-                />
-              </div>
-              
               {/* Controls row */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  {/* Play/Pause button */}
-                  <button 
-                    onClick={handlePlayPause} 
-                    className="text-white p-1 focus:outline-none"
-                    aria-label={isPlaying ? "Pause" : "Play"}
-                  >
-                    {isPlaying ? (
-                      <PauseIcon className="w-5 h-5" />
-                    ) : (
-                      <PlayIcon className="w-5 h-5" />
-                    )}
-                  </button>
-                  
                   {/* Volume control */}
                   <div className="flex items-center space-x-1">
                     <button 
@@ -224,11 +172,6 @@ export function StreamPlayer() {
                       className="w-16 h-1 bg-gray-600 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:h-2 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
                       onChange={handleVolumeChange}
                     />
-                  </div>
-                  
-                  {/* Time display */}
-                  <div className="text-white text-sm">
-                    {formatTime(duration * played)} / {formatTime(duration)}
                   </div>
                 </div>
                 

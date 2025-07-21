@@ -1,6 +1,6 @@
 "use client";
 
-import { useWebSocket } from "@/contexts/WebSocetContext";
+import { useWebSocket } from "@/contexts/hooks";
 import { ProtectedFeature } from "@/components/auth/ProtectedFeature";
 
 export function EncoreButton() {
