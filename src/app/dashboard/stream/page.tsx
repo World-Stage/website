@@ -5,7 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import axiosClient from "@/lib/api/apiClient";
 import { StreamPlayer } from "@/components/stream-player";
 import { Chat } from "@/components/chat";
-import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { EyeIcon, EyeSlashIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+import toast from "react-hot-toast";
 
 interface ActiveStream {
   id: string;
@@ -29,7 +30,7 @@ export default function StreamManagerPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState<UserWithStream | null>(null);
   const [showStreamKey, setShowStreamKey] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -44,7 +45,7 @@ export default function StreamManagerPage() {
         setUserData(response.data);
       } catch (err) {
         console.error('Failed to fetch user data:', err);
-        setError('Failed to load stream information');
+        toast.error('Failed to load stream information');
       } finally {
         setIsLoading(false);
       }
@@ -71,6 +72,19 @@ export default function StreamManagerPage() {
     return activeStream.status.charAt(0) + activeStream.status.slice(1).toLowerCase();
   };
 
+  const getStatusDescription = (status?: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return "Your stream is currently live!";
+      case 'QUEUED':
+        return "Your stream is currently queued and will be live shortly.";
+      case 'ENDED':
+        return "You are not currently streaming. Start a stream from your broadcasting software to begin.";
+      default:
+        return "You are not currently streaming. Start a stream from your broadcasting software to begin.";
+    }
+  }
+
   const handleEndStream = async () => {
     if (!userData?.activeStream?.id) return;
 
@@ -79,9 +93,30 @@ export default function StreamManagerPage() {
       // Refresh user data
       const response = await axiosClient.get(`/users/${user?.id}?returnActiveStream=true`);
       setUserData(response.data);
+      toast.success('Stream ended successfully');
     } catch (err) {
       console.error('Failed to end stream:', err);
-      setError('Failed to end stream');
+      toast.error('Failed to end stream');
+    }
+  };
+
+  const handleRegenerateStreamKey = async () => {
+    if (!user?.id) return;
+
+    setIsRegeneratingKey(true);
+    try {
+      await axiosClient.post(`/users/${user.id}/regenerate-stream-key`);
+      // Refresh user data to get the new stream key
+      const response = await axiosClient.get(`/users/${user.id}?returnActiveStream=true`);
+      setUserData(response.data);
+      // Show the new key after regeneration
+      setShowStreamKey(true);
+      toast.success('Stream key regenerated successfully');
+    } catch (err) {
+      console.error('Failed to regenerate stream key:', err);
+      toast.error('Failed to regenerate stream key');
+    } finally {
+      setIsRegeneratingKey(false);
     }
   };
 
@@ -109,14 +144,7 @@ export default function StreamManagerPage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold mb-4 text-red-600">Error</h1>
-        <p className="text-gray-600 dark:text-gray-400">{error}</p>
-      </div>
-    );
-  }
+
 
   const activeStream = userData?.activeStream;
   const isStreamActive = activeStream?.status === 'ACTIVE';
@@ -137,9 +165,7 @@ export default function StreamManagerPage() {
           </span>
         </div>
         <p className="text-gray-600 dark:text-gray-400">
-          {isStreamActive
-            ? "Your stream is currently live!"
-            : "You are not currently streaming. Start a stream from your broadcasting software to begin."
+          {getStatusDescription(activeStream?.status)
           }
         </p>
       </div>
@@ -159,9 +185,20 @@ export default function StreamManagerPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Stream Key
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Stream Key
+              </label>
+              <button
+                onClick={handleRegenerateStreamKey}
+                disabled={isRegeneratingKey || isStreamActive}
+                className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title={isStreamActive ? "Cannot regenerate key while streaming" : "Generate new stream key"}
+              >
+                <ArrowPathIcon className={`w-3 h-3 ${isRegeneratingKey ? 'animate-spin' : ''}`} />
+                <span>{isRegeneratingKey ? 'Generating...' : 'Regenerate'}</span>
+              </button>
+            </div>
             <div className="flex items-center space-x-2">
               <div className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md">
                 <code className="text-sm text-gray-900 dark:text-white font-mono">
@@ -173,7 +210,6 @@ export default function StreamManagerPage() {
               </div>
               <button
                 onClick={() => {
-                  console.log('Toggle clicked, current state:', showStreamKey);
                   setShowStreamKey(!showStreamKey);
                 }}
                 className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-600"
@@ -186,17 +222,25 @@ export default function StreamManagerPage() {
                 )}
               </button>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Keep your stream key private. Anyone with this key can stream to your channel.
-            </p>
+            <div className="flex items-start justify-between mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Keep your stream key private. Anyone with this key can stream to your channel.
+              </p>
+              {isStreamActive && (
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 ml-2">
+                  Cannot regenerate while streaming
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Active Stream Content */}
+      {/*  TODO Bring Back later
+      Active Stream Content
       {isStreamActive && activeStream && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Stream Player */}
+
           <div className="lg:col-span-2">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
               <h2 className="text-lg font-bold mb-4">Live Stream</h2>
@@ -204,12 +248,13 @@ export default function StreamManagerPage() {
             </div>
           </div>
 
-          {/* Chat */}
+
           <div className="lg:col-span-1">
             <Chat />
           </div>
         </div>
-      )}
+      )} 
+      */}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
