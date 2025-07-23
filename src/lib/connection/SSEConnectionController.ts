@@ -6,19 +6,37 @@ import { ConnectionEventType } from './types';
  */
 export interface SSEState {
     hlsUrl: string;
-    currentStreamer: Streamer | null;
+    stream: Stream | null;
     expirationTime: number | null;
     streamId: string;
 }
 
 /**
- * Interface for streamer information
+ * Interface for user information
  */
-export interface Streamer {
+export interface User {
     id: string;
+    email: string;
     username: string;
+    streamKey: string;
+    createdTs: string;
+    lastModifiedTs: string;
+}
+
+/**
+ * Interface for stream information
+ */
+export interface Stream {
+    id: string;
+    streamKey: string;
+    rtmpUrl: string;
+    hlsUrl: string;
+    active: boolean;
     title: string;
-    timeRemaining: number;
+    description?: string;
+    status: string;
+    user: User;
+    timeRemaining?: number;
 }
 
 /**
@@ -80,7 +98,7 @@ export class SSEConnectionController extends BaseConnectionController {
         this.url = options.url;
         this.state = {
             hlsUrl: '',
-            currentStreamer: null,
+            stream: null,
             expirationTime: null,
             streamId: ''
         };
@@ -228,12 +246,17 @@ export class SSEConnectionController extends BaseConnectionController {
         const streamUpdateHandler = (event: MessageEvent) => {
             try {
                 const data = JSON.parse(event.data);
-                this.state.currentStreamer = {
-                    id: data.streamerId,
-                    username: data.streamerName,
-                    title: data.title,
-                    timeRemaining: data.timeRemaining
-                };
+                if (this.state.stream) {
+                    this.state.stream = {
+                        ...this.state.stream,
+                        title: data.title,
+                        timeRemaining: data.timeRemaining,
+                        user: {
+                            ...this.state.stream.user,
+                            username: data.streamerName
+                        }
+                    };
+                }
                 this.logDebug('Received stream update event', data);
             } catch (error) {
                 this.logDebug('Failed to process stream update event', error);
@@ -258,11 +281,29 @@ export class SSEConnectionController extends BaseConnectionController {
                 // Clear all stream-related state
                 this.state.hlsUrl = '';
                 this.state.expirationTime = null;
-                this.state.currentStreamer = null;
+                this.state.stream = null;
                 this.state.streamId = '';
                 this.logDebug('Received stream ended event', data);
             } catch (error) {
                 this.logDebug('Failed to process stream ended event', error);
+            }
+        };
+
+        // Create event listener for stream metadata updates
+        const streamMetadataUpdateHandler = (event: MessageEvent) => {
+            try {
+                const data = JSON.parse(event.data);
+                // Update title and description if we have a current stream
+                if (this.state.stream) {
+                    this.state.stream = {
+                        ...this.state.stream,
+                        title: data.title || this.state.stream.title,
+                        description: data.description
+                    };
+                    this.logDebug('Received stream metadata update event', data);
+                }
+            } catch (error) {
+                this.logDebug('Failed to process stream metadata update event', error);
             }
         };
 
@@ -271,12 +312,14 @@ export class SSEConnectionController extends BaseConnectionController {
         this.eventSource.addEventListener('stream-update', streamUpdateHandler);
         this.eventSource.addEventListener('stream-expiration', streamExpirationHandler);
         this.eventSource.addEventListener('stream-ended', streamEndedHandler);
+        this.eventSource.addEventListener('stream-metadata-update', streamMetadataUpdateHandler);
 
         // Store event listeners for later cleanup
         this.eventListeners.set('new-stream', newStreamHandler);
         this.eventListeners.set('stream-update', streamUpdateHandler);
         this.eventListeners.set('stream-expiration', streamExpirationHandler);
         this.eventListeners.set('stream-ended', streamEndedHandler);
+        this.eventListeners.set('stream-metadata-update', streamMetadataUpdateHandler);
 
         this.logDebug('Event listeners set up successfully');
     }
@@ -358,10 +401,23 @@ export class SSEConnectionController extends BaseConnectionController {
             if (data && data.active && data.hlsUrl) {
                 // Update state with initial data
                 this.state.hlsUrl = data.hlsUrl.replace('nginx-rtmp:8080', 'localhost:8080');
-                this.state.currentStreamer = {
-                    id: data.streamerId,
-                    username: data.streamerName,
-                    title: data.title,
+                this.state.stream = {
+                    id: data.id || '',
+                    streamKey: data.streamKey || '',
+                    rtmpUrl: data.rtmpUrl || '',
+                    hlsUrl: data.hlsUrl,
+                    active: data.active,
+                    title: data.title || '',
+                    description: data.description,
+                    status: data.status || '',
+                    user: data.user || {
+                        id: data.streamerId || '',
+                        email: '',
+                        username: data.streamerName || '',
+                        streamKey: '',
+                        createdTs: '',
+                        lastModifiedTs: ''
+                    },
                     timeRemaining: data.timeRemaining
                 };
                 this.state.streamId = data.id || '';
@@ -385,7 +441,7 @@ export class SSEConnectionController extends BaseConnectionController {
                 this.logDebug('No active stream found', data);
                 // Clear state if no active stream
                 this.state.hlsUrl = '';
-                this.state.currentStreamer = null;
+                this.state.stream = null;
                 this.state.streamId = '';
                 this.state.expirationTime = null;
             }
@@ -393,7 +449,7 @@ export class SSEConnectionController extends BaseConnectionController {
             this.logDebug('Failed to fetch initial stream data', error);
             // Clear state on error
             this.state.hlsUrl = '';
-            this.state.currentStreamer = null;
+            this.state.stream = null;
             this.state.streamId = '';
             this.state.expirationTime = null;
         }
@@ -549,7 +605,7 @@ export class SSEConnectionController extends BaseConnectionController {
         this.eventListeners.clear();
         this.state = {
             hlsUrl: '',
-            currentStreamer: null,
+            stream: null,
             expirationTime: null,
             streamId: ''
         };
