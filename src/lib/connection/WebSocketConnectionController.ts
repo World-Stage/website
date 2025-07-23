@@ -456,7 +456,7 @@ export class WebSocketConnectionController extends BaseConnectionController {
     try {
       // Extract base URL from WebSocket URL
       const baseUrl = this.url.split('/ws')[0];
-      const response = await fetch(`${baseUrl}/stream/view/count`);
+      const response = await fetch(`${baseUrl}/streams/view/count`);
       const data = await response.json();
       this.state.viewers = data.viewerCount;
       this.logDebug('Fetched viewer count', data.viewerCount);

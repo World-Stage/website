@@ -28,7 +28,7 @@ interface ConnectionAwareStreamProviderProps {
 export function ConnectionAwareStreamProvider({
   children,
   connectionManager,
-  sseUrl = 'http://localhost:8082/stream/view/subscribe'
+  sseUrl = 'http://localhost:8082/streams/view/subscribe'
 }: ConnectionAwareStreamProviderProps) {
   const [hlsUrl, setHlsUrl] = useState('');
   const [expirationTime, setExpirationTime] = useState<number | null>(null);

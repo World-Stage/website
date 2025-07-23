@@ -33,7 +33,7 @@ export function ConnectionManagerWrapper({ children }: ConnectionManagerWrapperP
   const webSocketUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:8082/ws';
   
   // SSE URL - use environment variable if available or fallback to default
-  const sseUrl = process.env.NEXT_PUBLIC_SSE_URL || 'http://localhost:8082/stream/view/subscribe';
+  const sseUrl = process.env.NEXT_PUBLIC_SSE_URL || 'http://localhost:8082/streams/view/subscribe';
 
   // Add global logging to help debug connection issues
   useEffect(() => {

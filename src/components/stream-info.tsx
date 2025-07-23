@@ -11,8 +11,6 @@ export function StreamInfo() {
     timeAdded
   } = useStream();
 
-  console.log(stream)
-
   return (
     <div className="w-full">
       {stream && (

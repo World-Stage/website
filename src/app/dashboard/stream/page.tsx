@@ -101,10 +101,8 @@ export default function StreamManagerPage() {
     if (!userData?.activeStream?.id) return;
 
     try {
-      await axiosClient.post(`/streams/${userData.activeStream.id}/end`);
+      await axiosClient.delete(`/streams/${userData.activeStream.id}/unpublish`);
       // Refresh user data
-      const response = await axiosClient.get(`/users/${user?.id}?returnActiveStream=true`);
-      setUserData(response.data);
       toast.success('Stream ended successfully');
     } catch (err) {
       console.error('Failed to end stream:', err);
