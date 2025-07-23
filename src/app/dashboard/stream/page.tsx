@@ -117,9 +117,8 @@ export default function StreamManagerPage() {
 
     setIsRegeneratingKey(true);
     try {
-      await axiosClient.post(`/users/${user.id}/regenerate-stream-key`);
+      const response = await axiosClient.post(`/users/${user.id}/regenerateStreamKey`);
       // Refresh user data to get the new stream key
-      const response = await axiosClient.get(`/users/${user.id}?returnActiveStream=true`);
       setUserData(response.data);
       // Show the new key after regeneration
       setShowStreamKey(true);
