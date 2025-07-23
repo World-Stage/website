@@ -17,11 +17,17 @@ interface ActiveStream {
   status: 'ACTIVE' | 'QUEUED' | 'ENDED';
 }
 
+interface StreamMetadata {
+  title: string;
+  description: string;
+}
+
 interface UserWithStream {
   id: string;
   username: string;
   email: string;
   streamKey: string;
+  streamMetadata?: StreamMetadata;
   activeStream?: ActiveStream;
 }
 
@@ -31,6 +37,9 @@ export default function StreamManagerPage() {
   const [userData, setUserData] = useState<UserWithStream | null>(null);
   const [showStreamKey, setShowStreamKey] = useState(false);
   const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
+  const [streamTitle, setStreamTitle] = useState('');
+  const [streamDescription, setStreamDescription] = useState('');
+  const [isUpdatingMetadata, setIsUpdatingMetadata] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -43,6 +52,9 @@ export default function StreamManagerPage() {
         const response = await axiosClient.get(`/users/${user.id}?returnActiveStream=true`);
         console.log(response)
         setUserData(response.data);
+        // Set initial values for stream metadata
+        setStreamTitle(response.data.streamMetadata?.title || '');
+        setStreamDescription(response.data.streamMetadata?.description || '');
       } catch (err) {
         console.error('Failed to fetch user data:', err);
         toast.error('Failed to load stream information');
@@ -117,6 +129,34 @@ export default function StreamManagerPage() {
       toast.error('Failed to regenerate stream key');
     } finally {
       setIsRegeneratingKey(false);
+    }
+  };
+
+  const handleUpdateMetadata = async () => {
+    if (!user?.id) return;
+
+    setIsUpdatingMetadata(true);
+    try {
+      await axiosClient.patch(`/users/${user.id}/streamMetadata`, {
+        title: streamTitle,
+        description: streamDescription
+      });
+
+      // Update local userData to reflect the changes
+      setUserData(prev => prev ? {
+        ...prev,
+        streamMetadata: {
+          title: streamTitle,
+          description: streamDescription
+        }
+      } : null);
+
+      toast.success('Stream metadata updated successfully');
+    } catch (err) {
+      console.error('Failed to update stream metadata:', err);
+      toast.error('Failed to update stream metadata');
+    } finally {
+      setIsUpdatingMetadata(false);
     }
   };
 
@@ -266,9 +306,10 @@ export default function StreamManagerPage() {
               </label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                value={streamTitle}
+                onChange={(e) => setStreamTitle(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter stream title"
-                disabled={!isStreamActive}
               />
             </div>
             <div>
@@ -276,12 +317,20 @@ export default function StreamManagerPage() {
                 Stream Description
               </label>
               <textarea
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                value={streamDescription}
+                onChange={(e) => setStreamDescription(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={3}
                 placeholder="Enter stream description"
-                disabled={!isStreamActive}
               ></textarea>
             </div>
+            <button
+              onClick={handleUpdateMetadata}
+              disabled={isUpdatingMetadata}
+              className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isUpdatingMetadata ? 'Updating...' : 'Update Stream Info'}
+            </button>
           </div>
         </div>
 
