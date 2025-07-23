@@ -2,12 +2,12 @@
 
 import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { ConnectionManager } from '../lib/connection/ConnectionManager';
-import { SSEConnectionController, SSEState, Streamer } from '../lib/connection/SSEConnectionController';
+import { SSEConnectionController, SSEState, Stream } from '../lib/connection/SSEConnectionController';
 
 interface StreamContextType {
   hlsUrl: string;
   expirationTime: number | null;
-  currentStreamer: Streamer | null;
+  stream: Stream | null;
   isPlaying: boolean;
   secondsRemaining: number | null;
   formattedTimeRemaining: string | null;
@@ -32,7 +32,7 @@ export function ConnectionAwareStreamProvider({
 }: ConnectionAwareStreamProviderProps) {
   const [hlsUrl, setHlsUrl] = useState('');
   const [expirationTime, setExpirationTime] = useState<number | null>(null);
-  const [currentStreamer, setCurrentStreamer] = useState<Streamer | null>(null);
+  const [stream, setStream] = useState<Stream | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const [formattedTimeRemaining, setFormattedTimeRemaining] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export function ConnectionAwareStreamProvider({
             console.log('[ConnectionAwareStreamProvider] Initial data fetched, syncing state immediately');
             const state = sseController.getState();
             setHlsUrl(state.hlsUrl);
-            setCurrentStreamer(state.currentStreamer);
+            setStream(state.stream);
             setExpirationTime(state.expirationTime);
             setStreamId(state.streamId);
             if (state.hlsUrl) {
@@ -71,7 +71,7 @@ export function ConnectionAwareStreamProvider({
             setTimeout(() => {
               const state = sseController.getState();
               setHlsUrl(state.hlsUrl);
-              setCurrentStreamer(state.currentStreamer);
+              setStream(state.stream);
               setExpirationTime(state.expirationTime);
               setStreamId(state.streamId);
               if (state.hlsUrl) {
@@ -105,7 +105,7 @@ export function ConnectionAwareStreamProvider({
     const syncState = () => {
       const state = controller.getState();
       setHlsUrl(state.hlsUrl);
-      setCurrentStreamer(state.currentStreamer);
+      setStream(state.stream);
       
       // Check if expiration time was added
       if (state.expirationTime && prevExpirationTime && state.expirationTime > prevExpirationTime) {
@@ -190,7 +190,7 @@ export function ConnectionAwareStreamProvider({
   const value = {
     hlsUrl,
     expirationTime,
-    currentStreamer,
+    stream,
     isPlaying,
     secondsRemaining,
     formattedTimeRemaining,
