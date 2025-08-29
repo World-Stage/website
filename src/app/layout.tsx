@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ConnectionManagerWrapper } from "@/lib/connection";
 import { Toaster } from "react-hot-toast";
+import { DevInfo } from "@/components/dev-info";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -52,6 +53,7 @@ export default function RootLayout({
                   },
                 }}
               />
+              <DevInfo />
             </ConnectionManagerWrapper>
           </AuthProvider>
         </ThemeProvider>

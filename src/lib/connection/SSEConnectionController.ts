@@ -1,5 +1,6 @@
 import { BaseConnectionController } from './BaseConnectionController';
 import { ConnectionEventType } from './types';
+import { transformHlsUrl } from '../config/env';
 
 /**
  * Interface for SSE state that will be preserved during disconnection
@@ -234,7 +235,8 @@ export class SSEConnectionController extends BaseConnectionController {
         const newStreamHandler = (event: MessageEvent) => {
             try {
                 const data = JSON.parse(event.data);
-                this.state.hlsUrl = data.hlsUrl.replace('nginx-rtmp:8080', 'localhost:8080');
+                this.state.hlsUrl = transformHlsUrl(data.hlsUrl);
+                console.log("hls url", this.state.hlsUrl)
                 this.state.streamId = data.id;
                 this.logDebug('Received new stream event', data);
             } catch (error) {
@@ -400,7 +402,7 @@ export class SSEConnectionController extends BaseConnectionController {
             // Check if there's actually an active stream
             if (data && data.active && data.hlsUrl) {
                 // Update state with initial data
-                this.state.hlsUrl = data.hlsUrl.replace('nginx-rtmp:8080', 'localhost:8080');
+                this.state.hlsUrl = transformHlsUrl(data.hlsUrl);
                 this.state.stream = {
                     id: data.id || '',
                     streamKey: data.streamKey || '',

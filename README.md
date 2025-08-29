@@ -38,6 +38,58 @@ You can start editing the page by modifying `src/app/page.tsx`. The page auto-up
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a custom font family.
 
+## Environment Configuration
+
+This application supports multiple environments (development and production) with easy switching capabilities.
+
+### Environment Files
+
+- `.env.example` - Template with all available environment variables
+- `.env.local` - Your local development environment (auto-created)
+- `.env.production` - Production environment configuration
+
+### Environment Variables
+
+| Variable | Description | Development Default | Production Default |
+|----------|-------------|-------------------|-------------------|
+| `NEXT_PUBLIC_API_BASE_URL` | Backend API base URL | `http://localhost:8082` | `https://api.stagio.live` |
+| `NEXT_PUBLIC_API_REFRESH_URL` | Token refresh endpoint | `http://localhost:8082/auth/refresh` | `https://api.stagio.live/auth/refresh` |
+| `NEXT_PUBLIC_WEBSOCKET_URL` | WebSocket connection URL | `http://localhost:8082/ws` | `https://api.stagio.live/ws` |
+| `NEXT_PUBLIC_SSE_URL` | Server-Sent Events URL | `http://localhost:8082/streams/view/subscribe` | `https://api.stagio.live/streams/view/subscribe` |
+| `NEXT_PUBLIC_RTMP_URL` | RTMP server for streaming | `rtmp://localhost:1935/live` | `rtmp://api.stagio.live:1935/live` |
+
+### Quick Environment Switching
+
+Switch between development and production environments easily:
+
+```bash
+# Switch to development environment
+npm run env:dev
+# or
+node scripts/switch-env.js dev
+
+# Switch to production environment (to test prod locally)
+npm run env:prod
+# or
+node scripts/switch-env.js prod
+
+# Run development server with production URLs
+npm run dev:prod
+```
+
+### Development Scripts
+
+```bash
+# Standard development
+npm run dev
+
+# Development with production URLs (useful for testing)
+npm run dev:prod
+
+# Build for production
+npm run build:prod
+```
+
 ## Backend Requirements
 
 This frontend application requires a running backend server. You can do so buy running docker compose in local-docker-platform. This will spin up the nginx-rtmp server and Spring Boot API.

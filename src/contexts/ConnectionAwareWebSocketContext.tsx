@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import { ConnectionManager } from '../lib/connection/ConnectionManager';
 import { WebSocketConnectionController } from '../lib/connection/WebSocketConnectionController';
 import { ChatMessage, Encore } from '../lib/connection/types';
+import { getWebSocketUrl } from '../lib/config/env';
 
 interface WebSocketContextType {
     encoreInformation: Encore | null;
@@ -27,7 +28,7 @@ interface ConnectionAwareWebSocketProviderProps {
 export function ConnectionAwareWebSocketProvider({
     children,
     connectionManager,
-    webSocketUrl = 'http://localhost:8082/ws'
+    webSocketUrl = getWebSocketUrl()
 }: ConnectionAwareWebSocketProviderProps) {
     const { user, isAuthenticated } = useAuth();
     const [encoreInformation, setEncoreInformation] = useState<Encore | null>(null);

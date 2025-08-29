@@ -4,9 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:prod": "cp .env.production .env.local && next dev --turbopack",
+    "dev:local": "cp .env.local.backup .env.local 2>/dev/null || echo 'No backup found, using current .env.local' && next dev --turbopack",
     "build": "next build",
+    "build:prod": "cp .env.production .env.local && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "env:prod": "cp .env.local .env.local.backup 2>/dev/null || true && cp .env.production .env.local && echo 'Switched to production environment'",
+    "env:dev": "cp .env.local.backup .env.local 2>/dev/null || echo 'No backup found, creating development environment' && cp .env.example .env.local && echo 'Switched to development environment'"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.3",

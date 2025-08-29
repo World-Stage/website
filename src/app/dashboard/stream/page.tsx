@@ -7,6 +7,7 @@ import { StreamPlayer } from "@/components/stream-player";
 import { Chat } from "@/components/chat";
 import { EyeIcon, EyeSlashIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
+import { getRTMPUrl } from "@/lib/config/env";
 
 interface ActiveStream {
   id: string;
@@ -217,7 +218,7 @@ export default function StreamManagerPage() {
             </label>
             <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md">
               <code className="text-sm text-gray-900 dark:text-white font-mono">
-                rtmp://localhost:1935/live
+                {getRTMPUrl()}
               </code>
             </div>
           </div>
