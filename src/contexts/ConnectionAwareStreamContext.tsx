@@ -3,6 +3,7 @@
 import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { ConnectionManager } from '../lib/connection/ConnectionManager';
 import { SSEConnectionController, SSEState, Stream } from '../lib/connection/SSEConnectionController';
+import { getSSEUrl } from '../lib/config/env';
 
 interface StreamContextType {
   hlsUrl: string;
@@ -28,7 +29,7 @@ interface ConnectionAwareStreamProviderProps {
 export function ConnectionAwareStreamProvider({
   children,
   connectionManager,
-  sseUrl = 'http://localhost:8082/streams/view/subscribe'
+  sseUrl = getSSEUrl()
 }: ConnectionAwareStreamProviderProps) {
   const [hlsUrl, setHlsUrl] = useState('');
   const [expirationTime, setExpirationTime] = useState<number | null>(null);

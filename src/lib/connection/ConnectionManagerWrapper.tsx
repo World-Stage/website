@@ -5,6 +5,7 @@ import { ConnectionManagerProvider } from './ConnectionManagerProvider';
 import { ConnectionAwareWebSocketProvider } from '@/contexts/ConnectionAwareWebSocketContext';
 import { ConnectionAwareStreamProvider } from '@/contexts/ConnectionAwareStreamContext';
 import { ConnectionManagerConfig } from './types';
+import { getWebSocketUrl, getSSEUrl } from '../config/env';
 
 interface ConnectionManagerWrapperProps {
   children: ReactNode;
@@ -29,11 +30,9 @@ export function ConnectionManagerWrapper({ children }: ConnectionManagerWrapperP
     debug: true
   };
 
-  // WebSocket URL - use environment variable if available or fallback to default
-  const webSocketUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:8082/ws';
-  
-  // SSE URL - use environment variable if available or fallback to default
-  const sseUrl = process.env.NEXT_PUBLIC_SSE_URL || 'http://localhost:8082/streams/view/subscribe';
+  // Get URLs from centralized configuration
+  const webSocketUrl = getWebSocketUrl();
+  const sseUrl = getSSEUrl();
 
   // Add global logging to help debug connection issues
   useEffect(() => {

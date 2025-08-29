@@ -1,8 +1,8 @@
 import axios from "axios";
+import { getApiBaseUrl, getApiRefreshUrl } from "../config/env";
 
 const axiosClient = axios.create({
-  //baseURL: "http://10.0.0.126:8080",
-  baseURL: "http://localhost:8082",
+  baseURL: getApiBaseUrl(),
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -38,7 +38,7 @@ axiosClient.interceptors.response.use(
 
       try {
         // Try to refresh the token
-        const response = await axios.post('http://localhost:8082/auth/refresh', {}, {
+        const response = await axios.post(getApiRefreshUrl(), {}, {
           withCredentials: true // Include cookies for refresh token
         });
 
