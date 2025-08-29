@@ -38,7 +38,7 @@ export function getConfig(): AppConfig {
   const productionApiBase = 'https://api.stagio.live';
   const productionWebSocketUrl = 'https://api.stagio.live/ws';
   const productionSSEUrl = 'https://api.stagio.live/streams/view/subscribe';
-  const productionRTMPUrl = 'rtmp://api.stagio.live:1935/live';
+  const productionRTMPUrl = 'rtmp://rtmp.stagio.live:1935/live';
 
   return {
     api: {
